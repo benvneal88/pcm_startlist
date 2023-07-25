@@ -1,39 +1,37 @@
 import os
-import sys
 
-import datetime
-
+import numpy
 import requests
 from bs4 import BeautifulSoup
-import pandas
-import re
+import pandas as pd
 
+import utils
 
-url = "https://www.procyclingstats.com/race/vuelta-a-espana/2022/stage-9/startlist"
-url = "https://tabs.ultimate-guitar.com/b/beck/golden_age_crd.htm"
-root_directory = os.path.join(os.getcwd(), "src", "data")
+logger = utils.get_logger_init()
+
+DATA_DIRECTORY = os.path.join("data")
+
 
 def get_start_list(url: str, save_file_path):
-    print(f"Fetching start list from ur: {url} and saving to {save_file_path}")
+    logger.info(f"Fetching start list from ur: {url} and saving to {save_file_path}")
     response = requests.get(url)
 
-    print(f"successfully retrieved data from: {response.status_code}")
-
-
+    logger.info(f"successfully retrieved data {response.status_code}")
     with open(save_file_path, "w", encoding="utf-8") as _file:
         _file.write(response.text)
 
-    print(f"saved data to file {save_file_path}")
+    logger.info(f"saved data to file {save_file_path}")
 
 
-def transform_html_to_df(file_path):
+def transform_html_to_startlist(html_file_path) -> pd.DataFrame:
+    logger.info(f"Parsing start list file {html_file_path}")
 
-    with open(file_path, "r", encoding="utf-8") as _file:
+    with open(html_file_path, "r", encoding="utf-8") as _file:
         soup = BeautifulSoup(str(_file.read()), 'html.parser')
 
     team_dict = {}
-    for _team_tag in soup.find_all("li", class_='team'):
-
+    #for _team_tag in soup.find_all("li", class_='team'):
+    for _team_tag in soup.find_all("li"):
         team_soup = BeautifulSoup(str(_team_tag), 'html.parser')
         team_attribute_tags = team_soup.find_all("a")
 
@@ -68,7 +66,9 @@ def transform_html_to_df(file_path):
                     #print(old_rider_list)
 
     normalized_rider_list = []
+
     for _team_id, _rider_list in team_dict.items():
+        logger.debug(_team_id)
         for _rider in _rider_list:
             _set = (_team_id, _rider)
             normalized_rider_list.append(_set)
@@ -79,21 +79,36 @@ def transform_html_to_df(file_path):
 
     normalized_dict = {"team_id": normalized_team_list, "rider_name": normalized_rider_name_list, "rider_id": normalized_rider_name_id_list}
 
-    team_df = pandas.DataFrame.from_dict(normalized_dict)
+    team_df = pd.DataFrame.from_dict(normalized_dict)
+
+    # remove any extra rider names picked up without teams
+    team_df = team_df[team_df['team_id'] != '']
     return team_df
 
 
+def get_startlist_from_url(url, file_name, force_refresh=False):
+    file_path = os.path.join(DATA_DIRECTORY, file_name)
+
+    if not os.path.exists(file_path) or force_refresh:
+        get_start_list(url, file_path)
+
+    startlist_df = transform_html_to_startlist(html_file_path=file_path)
+    return startlist_df
+
 
 if __name__ == "__main__":
-    file_path = os.path.join(root_directory, f"start_list.html")
 
-    # get_start_list(
-    #     url=url,
-    #     save_file_path=file_path
-    # )
+    url = "https://www.procyclingstats.com/race/tour-de-france/2023/startlist/startlist"
+    file_name = "startlist_tdf_2023.html"
 
-    team_df = transform_html_to_df(file_path=file_path)
-    print(team_df)
+    df = get_startlist_from_url(url, file_name)
+
+    print(f"Teams: {df['team_id'].unique()}")
+    print(f"Unique Riders: {len(df['rider_id'].unique())}")
+    #print(df.head(100))
+    #df.to_csv("data/startlist.csv")
+
+
 
 
 
