@@ -9,7 +9,7 @@ import utils
 
 logger = utils.get_logger_init()
 
-DATA_DIRECTORY = os.path.join("data_sources")
+
 
 
 def get_start_list(url: str, save_file_path):
@@ -99,6 +99,8 @@ def get_startlist_from_url(url, file_name, force_refresh=False):
 if __name__ == "__main__":
 
     url = "https://www.procyclingstats.com/race/tour-de-france/2023/startlist/startlist"
+    file_path = os.path.join("pcm_dbs")
+
     file_name = "startlist_tdf_2023.html"
 
     df = get_startlist_from_url(url, file_name)

@@ -5,7 +5,7 @@ from model import api as model_api
 logger = utils.get_logger_init()
 
 
-DATABASE_FILE = "data_sources/worlddb_2023.sqlite"
+DATABASE_FILE = "pcm_dbs/worlddb_2023.sqlite"
 CYCLIST_TABLE_NAME = "DYN_cyclist"
 RACE_TABLE_NAME = "STA_race"
 TEAM_TABLE_NAME = "DYN_team"
