@@ -1,44 +1,22 @@
-import os
-import sqlite3
 import pandas as pd
 import utils
+from model import api as model_api
 
 logger = utils.get_logger_init()
-import scraper
 
-DATA_DIRECTORY = os.path.join("data")
 
-# SQLiteExporter.exe -export  "Pro Cycling Manager 2023\Cloud\Neal\Career_1.cdb"
-
-DATABASE_FILE = "data/worlddb_2023.sqlite"
+DATABASE_FILE = "data_sources/worlddb_2023.sqlite"
 CYCLIST_TABLE_NAME = "DYN_cyclist"
 RACE_TABLE_NAME = "STA_race"
 TEAM_TABLE_NAME = "DYN_team"
 
-def get_database_conn(database_file=DATABASE_FILE):
-    conn = sqlite3.connect(
-        database_file,
-        isolation_level=None,
-        detect_types=sqlite3.PARSE_COLNAMES)
-    return conn
-
-
-def list_tables():
-    database_connection = get_database_conn()
-    sql_query = """SELECT name FROM sqlite_master  
-      WHERE type='table';"""
-    cursor = database_connection.cursor()
-    cursor.execute(sql_query)
-    tables = cursor.fetchall()
-    return tables
-
 
 def get_table(table_name):
-    database_connection = get_database_conn()
+    database_connection = model_api.get_database_conn(DATABASE_FILE)
     if table_name == TEAM_TABLE_NAME:
         columns = "IDteam as team_id, gene_sz_shortname as team_shortname, gene_sz_name as team_name"
     elif table_name == CYCLIST_TABLE_NAME:
-        columns = "IDcyclist as cyclist_id, gene_sz_lastname as last_name, gene_sz_firstname as first_name, gene_sz_firstlastname as name, fkIDteam as team_id"
+        columns = "IDcyclist as cyclist_id, gene_sz_lastname as cyclist_last_name, gene_sz_firstname as cyclist_first_name, gene_sz_firstlastname as cyclist_name, fkIDteam as team_id"
     elif table_name == RACE_TABLE_NAME:
         columns = "IDrace as race_id, gene_sz_race_name as race_name, gene_sz_abbreviation as race_abbrreviation, gene_sz_filename as race_filename"
 
@@ -75,7 +53,7 @@ def list_races(name_like=None):
 
 
 
-if __name__ == "__main__":
+#if __name__ == "__main__":
     #table_list = list_tables()
     # for table in table_list:
     #     if "team" in table[0]:
@@ -87,6 +65,6 @@ if __name__ == "__main__":
     # cyclists_df = get_table(CYCLIST_TABLE_NAME)
 
     #get_cyclists_teams()
-    print(get_race_startlist_file_name(race_name_like="Tour de France"))
+    #print(get_race_startlist_file_name(race_name_like="Tour de France"))
     #print(get_race_startlist_file_name(race_id=9))
 

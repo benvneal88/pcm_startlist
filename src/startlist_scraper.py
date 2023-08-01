@@ -9,7 +9,7 @@ import utils
 
 logger = utils.get_logger_init()
 
-DATA_DIRECTORY = os.path.join("data")
+DATA_DIRECTORY = os.path.join("data_sources")
 
 
 def get_start_list(url: str, save_file_path):
