@@ -1,8 +1,9 @@
 import pandas as pd
-import utils
+
 from model import api as model_api
 
-logger = utils.get_logger_init()
+from utils import logger
+logger = logger.get_logger_init()
 
 
 DATABASE_FILE = "pcm_dbs/worlddb_2023.sqlite"
@@ -31,12 +32,12 @@ def get_cyclists_teams():
     return cyclists_team_df
 
 
-def get_race_startlist_file_name(race_id: int):
+def get_race_start_list_file_name(race_id: int):
     races_df = get_table(RACE_TABLE_NAME)
     df = races_df[races_df['race_id'] == race_id]
-    startlist_file_name = f"{df.race_filename}.xml"
-    logger.info(f"Startlist file name: '{startlist_file_name}'")
-    return startlist_file_name
+    start_list_file_name = f"{df.race_filename}.xml"
+    logger.info(f"start_list file name: '{start_list_file_name}'")
+    return start_list_file_name
 
 
 def list_races(name_like=None):
@@ -65,6 +66,6 @@ def list_races(name_like=None):
     # cyclists_df = get_table(CYCLIST_TABLE_NAME)
 
     #get_cyclists_teams()
-    #print(get_race_startlist_file_name(race_name_like="Tour de France"))
-    #print(get_race_startlist_file_name(race_id=9))
+    #print(get_race_start_list_file_name(race_name_like="Tour de France"))
+    #print(get_race_start_list_file_name(race_id=9))
 
