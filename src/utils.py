@@ -2,7 +2,7 @@ import logging
 import os
 
 
-def get_logger_init():
+def get_logger():
     _logger = logging.getLogger(__name__)
 
     if not _logger.hasHandlers():

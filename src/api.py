@@ -2,7 +2,7 @@ import pcm_extract
 import utils
 from model import api as model_api
 
-logger = utils.get_logger_init()
+logger = utils.get_logger()
 
 MODEL_DB_FILE = "model/database.sqlite"
 

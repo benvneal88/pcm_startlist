@@ -1,5 +1,5 @@
 import os
-
+import re
 import numpy
 import requests
 from bs4 import BeautifulSoup
@@ -7,13 +7,14 @@ import pandas as pd
 
 import utils
 
-logger = utils.get_logger_init()
+logger = utils.get_logger()
 
 
-
+DATA_DIRECTORY = "data"
 
 def get_start_list(url: str, save_file_path):
-    logger.info(f"Fetching start list from ur: {url} and saving to {save_file_path}")
+    """Fetches start list html from url and saves the html as a file locally"""
+    logger.info(f"Fetching start list from url: {url} and saving to {save_file_path}")
     response = requests.get(url)
 
     logger.info(f"successfully retrieved data {response.status_code}")
@@ -24,6 +25,8 @@ def get_start_list(url: str, save_file_path):
 
 
 def transform_html_to_startlist(html_file_path) -> pd.DataFrame:
+    """Parses start list html into a dataframe"""
+
     logger.info(f"Parsing start list file {html_file_path}")
 
     with open(html_file_path, "r", encoding="utf-8") as _file:
@@ -82,31 +85,51 @@ def transform_html_to_startlist(html_file_path) -> pd.DataFrame:
     team_df = pd.DataFrame.from_dict(normalized_dict)
 
     # remove any extra rider names picked up without teams
-    team_df = team_df[team_df['team_id'] != '']
-    return team_df
+    df = team_df[team_df['team_id'] != '']
+
+    def extract_year_and_remove(text):
+        match = re.search(r'\b(\d{4})\b', text)
+        if match:
+            year = int(match.group())
+            text_without_year = re.sub(r'\b\d{4}\b', '', text)
+            return year, text_without_year.strip()
+        else:
+            return None, text
+
+    df['year'], df['team_id'] = zip(*df['team_id'].map(extract_year_and_remove))
+    df.rename(columns={'team_id': 'team_name'})
+    df = df.drop(columns=['rider_name'])
+    df = df.rename(columns={'rider_id': 'rider_name'})
+    return df
 
 
-def get_startlist_from_url(url, file_name, force_refresh=False):
+def get_startlist(year, race_name, force_refresh=False):
+    url = f"https://www.procyclingstats.com/race/{race_name}/{year}/startlist/startlist"
+    file_name = f"startlist_{race_name}_{year}.html"
+
     file_path = os.path.join(DATA_DIRECTORY, file_name)
 
     if not os.path.exists(file_path) or force_refresh:
         get_start_list(url, file_path)
-
+    
     startlist_df = transform_html_to_startlist(html_file_path=file_path)
     return startlist_df
 
 
 if __name__ == "__main__":
 
-    url = "https://www.procyclingstats.com/race/tour-de-france/2023/startlist/startlist"
-    file_path = os.path.join("pcm_dbs")
+    race_name = "giro-d-italia"
+    year = "2024"
 
-    file_name = "startlist_tdf_2023.html"
+    # race_name = "tour-de-france"
+    # year = "2023"
 
-    df = get_startlist_from_url(url, file_name)
+    df = get_startlist(year, race_name)
 
+    print(f"Riders: {df['rider_name']}")
     print(f"Teams: {df['team_id'].unique()}")
-    print(f"Unique Riders: {len(df['rider_id'].unique())}")
+    print(f"Unique Riders: {len(df['rider_name'].unique())}")
+    import pdb; pdb.set_trace()
     #print(df.head(100))
     #df.to_csv("data/startlist.csv")
 
