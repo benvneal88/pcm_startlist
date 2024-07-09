@@ -2,8 +2,8 @@ import logging
 import os
 
 
-def get_logger():
-    _logger = logging.getLogger(__name__)
+def get_logger(name):
+    _logger = logging.getLogger(name)
 
     if not _logger.hasHandlers():
         _logger.setLevel(logging.INFO)

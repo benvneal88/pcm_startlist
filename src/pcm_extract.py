@@ -2,8 +2,8 @@ import pandas as pd
 
 from model import api as model_api
 
-from utils import logger
-logger = logger.get_logger_init()
+from utils import logger_helper
+logger = logger_helper.get_logger()
 
 
 DATABASE_FILE = "pcm_dbs/worlddb_2023.sqlite"

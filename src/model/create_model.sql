@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS stg_start_list_files(
     race_name text,
     url text,
     blob_content blob,
-    downloaded_at text
+    downloaded_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS stg_start_list_cyclists(

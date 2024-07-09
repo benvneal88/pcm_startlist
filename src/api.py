@@ -1,8 +1,8 @@
-import pcm_extract
-import utils
+
+from utils import logger_helper
 from model import api as model_api
 
-logger = utils.get_logger()
+logger = logger_helper.get_logger(__name__)
 
 MODEL_DB_FILE = "model/database.sqlite"
 

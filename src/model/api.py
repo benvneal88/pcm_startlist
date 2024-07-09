@@ -1,10 +1,10 @@
 import os
 import sqlite3
+from utils import logger_helper
 
-from utils import logger
-logger = logger.get_logger_init()
+logger = logger_helper.get_logger(__name__)
 
-APP_DATABASE_FILE_NAME = "pcm_startlist_model.db"
+APP_DATABASE_FILE_NAME = "start_list_database.db"
 
 APP_DATABASE_FILE = os.path.join("data", "app_dbs", APP_DATABASE_FILE_NAME)
 
@@ -54,7 +54,7 @@ def insert_start_list_files(df):
     print(run_query("select * from stg_start_list_files"))
 
 
-def insert_start_list_cyclists(df):
+def insert_start_list_riders(df):
     logger.info(f"Inserting {len(df)} rows into stg_start_list_cyclists")
     df.to_sql(
         name="stg_start_list_cyclists",
@@ -64,18 +64,21 @@ def insert_start_list_cyclists(df):
     )
 
 
-def fetch_start_list(data_source, year, race_name):
-    results = run_query(f"select blob_content from stg_start_list_files where data_source = '{data_source}' and year = '{year}' and race_name = '{race_name}' limit 1")
-
+def get_start_list_html(data_source, year, race_name):
+    results = run_query(f"select blob_content from stg_start_list_files where data_source = '{data_source}' and year = '{year}' and race_name = '{race_name}' order by downloaded_at desc limit 1")
     return results[0][0]
 
 
 def create_model():
     # Open and read the file as a single buffer
-
     logger.info(f"Creating Model")
-    with open("model/create_model.sql", 'r') as file:
-        create_model_sql = file.read()
+    create_model_sql_file_path = "model/create_model.sql"
+    try:
+        with open(create_model_sql_file_path, 'r') as file:
+            create_model_sql = file.read()
+    except Exception as e:
+        logger.error(f"Failed to open file '{create_model_sql_file_path}'")
+        logger.exception(e)
 
     create_tables_sql = create_model_sql.split(';')
 
@@ -85,6 +88,8 @@ def create_model():
         logger.debug(f"Executing DDL:\n {create_table_sql}")
         try:
             conn.execute(create_table_sql)
+            logger.info(f"Model created at '{APP_DATABASE_FILE}'")
         except Exception as e:
             print(e)
+
 
