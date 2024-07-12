@@ -7,8 +7,8 @@ from abc import ABC, abstractmethod
 import sqlite3
 from typing import List, Dict
 
-from model import model_api
-from utils import logger_helper
+from src.model import model_api
+from src.utils import logger_helper
 logger = logger_helper.get_logger(__name__)
 
 
@@ -38,7 +38,7 @@ def insert_start_list_file_data_to_database(data_source, year, race_name, url, f
     }
 
     df = pandas.DataFrame.from_dict(row_dict)
-    import pdb; pdb.set_trace()
+
     model_api.insert_start_list_files(df)
 
 
@@ -54,7 +54,7 @@ class StartListScraper(ABC):
         pass
 
     def get_start_list_raw_dir_path(self) -> str:
-        return os.path.join("data", "start_lists")
+        return os.path.join(os.getcwd(), "src", "data", "start_lists")
 
     def get_start_list_raw_file_name(self) -> str:
         return f"{self.data_source_name}-{self.race_name}-{self.year}.html"

@@ -1,11 +1,10 @@
 import pandas as pd
-
-from model import model_api
-from utils import logger_helper
+import os
+from src.model import model_api
+from src.utils import database_helper
+from src.utils import logger_helper
 logger = logger_helper.get_logger(__name__)
 
-
-DATABASE_FILE = "pcm_dbs/worlddb_2023.sqlite"
 
 OBJECT_TABLE_MAPPING = {
     "team": "DYN_team",
@@ -13,46 +12,76 @@ OBJECT_TABLE_MAPPING = {
     "cyclist": "DYN_cyclist",
 }
 
+PCM_DATABASE_FIELD_MAPPINGS = {
+    "2024":
+        {
+            "DYN_team": {"IDteam": "team_id", "gene_sz_shortname": "team_short_name", "gene_sz_name": "team_name"},
+            "STA_race": {"IDrace": "race_id", "gene_sz_race_name": "race_name", "gene_sz_abbreviation": "race_abbrreviation"},
+            "DYN_cyclist": {"IDcyclist": "cyclist_id", "fkIDteam": "team_id", "gene_sz_lastname": "cyclist_last_name", "gene_sz_firstname": "cyclist_first_name"},
+        }
+}
 
-def get_object(database_connection, object_name):
+def get_database_file(database_name):
+    database_file_name = f"{database_name}.sqlite"
+    pcm_database_file = os.path.join(os.getcwd(), "src", "data", "pcm_dbs", database_file_name)
+    return pcm_database_file
+
+
+def get_object(database_name, object_name, pcm_version="2024"):
+    database_connection = database_helper.get_database_connection(get_database_file(database_name))
     assert object_name in OBJECT_TABLE_MAPPING.keys()
+    assert pcm_version in PCM_DATABASE_FIELD_MAPPINGS.keys()
+
     table_name = OBJECT_TABLE_MAPPING.get(object_name)
-    if object_name == "team":
-        columns = "IDteam as team_id, gene_sz_shortname as team_shortname, gene_sz_name as team_name"
-    elif object_name == "race":
-        columns = "IDcyclist as cyclist_id, gene_sz_lastname as cyclist_last_name, gene_sz_firstname as cyclist_first_name, gene_sz_firstlastname as cyclist_name, fkIDteam as team_id"
-    elif object_name == "cyclist":
-        columns = "IDrace as race_id, gene_sz_race_name as race_name, gene_sz_abbreviation as race_abbrreviation, gene_sz_filename as race_filename"
-    df = pd.read_sql_query(f"SELECT {columns} FROM {table_name}", database_connection)
+    database_field_mappings = PCM_DATABASE_FIELD_MAPPINGS.get(pcm_version)
+
+    assert table_name in database_field_mappings.keys()
+
+    table_field_mappings = database_field_mappings.get(table_name)
+
+    table_columns = database_helper.get_columns(database_connection, table_name)
+    for column_name in table_field_mappings.keys():
+        if column_name not in table_columns:
+            logger.error(f"Column {column_name} not found in table")
+
+    columns_select_statements = []
+    for column_name, rename_to in table_field_mappings.items():
+        columns_select_statements.append(f"{column_name} as {rename_to}")
+
+    select_statement = ",".join(columns_select_statements)
+
+    sql_statement = f"SELECT '{database_name}' as database_name, {select_statement} FROM {table_name}"
+    logger.info(f"SQL Statement: '{sql_statement}'")
+    df = pd.read_sql_query(sql_statement, database_connection)
     return df
 
 
-def get_cyclists_teams(database_connection):
-    teams_df = get_object(database_connection, "team")
-    cyclists_df = get_object(database_connection, "cyclist")
+def get_roster(database_name):
+    teams_df = get_object(database_name, "team")
+    cyclists_df = get_object(database_name, "cyclist")
     cyclists_team_df = teams_df.merge(cyclists_df, how="inner", left_on="team_id", right_on="team_id")
     return cyclists_team_df
 
 
-def get_race_start_list_file_name(database_connection, race_id: int):
-    races_df = get_object(database_connection, "race")
-    df = races_df[races_df['race_id'] == race_id]
-    start_list_file_name = f"{df.race_filename}.xml"
-    logger.info(f"start_list file name: '{start_list_file_name}'")
-    return start_list_file_name
+# def get_race_start_list_file_name(database_connection, race_id: int):
+#     races_df = get_object(database_connection, "race")
+#     df = races_df[races_df['race_id'] == race_id]
+#     start_list_file_name = f"{df.race_filename}.xml"
+#     logger.info(f"start_list file name: '{start_list_file_name}'")
+#     return start_list_file_name
 
 
-def list_races(database_connection, name_like=None):
-    races_df = get_object(database_connection, "race")
-
-    if name_like:
-        df = races_df.loc[races_df.race_name.str.contains(name_like), :]
-    else:
-        df = races_df
-
-    logger.info(f"List of races:\n {df.head(100)}")
-    #logger.info(df.dtypes)
-    return df
+# def list_races(database_connection, name_like=None):
+#     races_df = get_object(database_connection, "race")
+#
+#     if name_like:
+#         df = races_df.loc[races_df.race_name.str.contains(name_like), :]
+#     else:
+#         df = races_df
+#
+#     logger.info(f"List of races:\n {df.head(100)}")
+#     #logger.info(df.dtypes)
+#     return df
 
 
 

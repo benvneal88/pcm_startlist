@@ -25,30 +25,35 @@ Launch command prompt and type in the following command to export a PCM .cdb dat
 
 Extract Data from PCM Database
 
-    from pcm import pcm_api
-    database_name = "worlddb_2024.sqlite"
+    from src.pcm import pcm_api, extract
+    from src.utils import database_helper
+    database_name = "worlddb_2024"
+    
     pcm_api.load_model(database_name)
-
-    from utils import database_helper
-    conn = pcm_api.get_database_file(database_name)
-    database_helper.get_metadata(conn, "STA_race")
+    
+    extract.get_object(database_name, "team")
+    extract.get_object(database_name, "race")
+    extract.get_object(database_name, "cyclist")
+    extract.get_roster(conn)
 
 Inspect Table Data
 
-    from model import model_api
-    model_api.list_tables()
+    from src.model import model_api
     print(model_api.run_query("select * from stg_start_list_files"))
 
 Delete Tables
 
-    from model import model_api
-    model_api.drop_all_tables()
+    from src.model import model_api
+    model_api.delete_model_tables(['pcm_stg_cyclists','pcm_stg_teams','pcm_stg_races'])
 
 Create Tables
 
-    from model import model_api
+    from src.model import model_api
     model_api.create_model()
-    model_api.list_tables()
+    
+    from src.utils import database_helper
+    conn = database_helper.get_database_connection(model_api.APP_DATABASE_FILE)
+    database_helper.list_tables(conn)
 
 ### Docker
 

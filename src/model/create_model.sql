@@ -22,26 +22,28 @@ CREATE TABLE IF NOT EXISTS stg_start_list_cyclists(
 -- PCM DB STAGING --
 
 CREATE TABLE IF NOT EXISTS pcm_stg_races(
+    database_name text,
     race_id integer,
     race_name text,
-    race_abbrreviation text,
-    race_filename text
+    race_abbrreviation text
 );
 
 
 CREATE TABLE IF NOT EXISTS pcm_stg_teams(
+    database_name text,
     team_id integer,
     team_name text,
-    team_shortname text
+    team_short_name text
 );
 
 
 CREATE TABLE IF NOT EXISTS pcm_stg_cyclists(
+    database_name text,
     cyclist_id integer,
+    team_id integer,
     cyclist_name text,
     cyclist_last_name text,
-    cyclist_first_name text,
-    team_id integer
+    cyclist_first_name text
 );
 
 

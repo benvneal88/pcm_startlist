@@ -3,7 +3,7 @@ import requests
 from scrapers.scraper_api import StartListScraper
 from bs4 import BeautifulSoup
 import pandas
-from utils import logger_helper
+from src.utils import logger_helper
 logger = logger_helper.get_logger(__name__)
 
 

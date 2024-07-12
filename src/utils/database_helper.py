@@ -1,7 +1,7 @@
 import sys
 import sqlite3
-from utils import logger_helper
-from utils import database_helper
+from src.utils import logger_helper
+from src.utils import database_helper
 logger = logger_helper.get_logger(__name__)
 
 def get_database_connection(database_file):
@@ -32,10 +32,12 @@ def get_metadata(database_connection, table_name):
     cursor = database_connection.cursor()
     cursor.execute(pragma_sql)
     columns_info = cursor.fetchall()
-    database_connection.close()
-    # Print the column information
-    for column in columns_info:
-        print(column)
+    return columns_info
+
+def get_columns(database_connection, table_name):
+    columns_info = get_metadata(database_connection, table_name)
+    columns = [_tuple[1] for _tuple in columns_info]
+    return columns
 
 
 def run_query(database_connection, sql_query):
@@ -54,4 +56,3 @@ def drop_tables(database_connection, tables):
             database_connection.commit()
         except Exception as e:
             print(e)
-    database_connection.close()
