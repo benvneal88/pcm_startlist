@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS stg_start_list_files(
     year integer,
     race_name text,
     url text,
-    blob_content blob,
+    blob_content text,
     downloaded_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

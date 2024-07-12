@@ -1,8 +1,8 @@
 from typing import List, Dict
 import requests
-from scrapers.api import StartListScraper
+from scrapers.scraper_api import StartListScraper
 from bs4 import BeautifulSoup
-
+import pandas
 from utils import logger_helper
 logger = logger_helper.get_logger(__name__)
 
@@ -11,7 +11,7 @@ class ProCyclingStatsStartListScraper(StartListScraper):
     def __init__(self, year, race_name):
         super().__init__(year=year, race_name=race_name, data_source_name="procyclingstats")
 
-    def get_start_list_url(self) -> str:
+    def get_start_list_raw_url(self) -> str:
         url = f"https://www.procyclingstats.com/race/{self.race_name}/{self.year}/startlist/startlist"
         return url
 
@@ -74,7 +74,7 @@ class ProCyclingStatsStartListScraper(StartListScraper):
         normalized_dict = {"team_name": normalized_team_list, "rider_name": normalized_rider_name_list,
                            "cyclist_name": normalized_rider_name_id_list}
 
-        df = pd.DataFrame.from_dict(normalized_dict)
+        df = pandas.DataFrame.from_dict(normalized_dict)
 
         # remove any extra rider names picked up without teams
         df = df[df['team_name'] != '']
