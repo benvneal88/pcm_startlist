@@ -1,6 +1,6 @@
 from typing import List, Dict
 import requests
-from scrapers.scraper_api import StartListScraper
+from src.scrapers.scraper_api import StartListScraper
 from bs4 import BeautifulSoup
 import pandas
 from src.utils import logger_helper
@@ -12,7 +12,7 @@ class ProCyclingStatsStartListScraper(StartListScraper):
         super().__init__(year=year, race_name=race_name, data_source_name="procyclingstats")
 
     def get_start_list_raw_url(self) -> str:
-        url = f"https://www.procyclingstats.com/race/{self.race_name}/{self.year}/startlist/startlist"
+        url = f"https://www.procyclingstats.com/race/{self.race_name_dashed}/{self.year}/startlist/startlist"
         return url
 
     def transform_raw_start_list(self, html_string) -> List[Dict]:

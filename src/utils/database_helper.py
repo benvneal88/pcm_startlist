@@ -1,5 +1,6 @@
 import sys
 import sqlite3
+import pandas
 from src.utils import logger_helper
 from src.utils import database_helper
 logger = logger_helper.get_logger(__name__)
@@ -42,10 +43,8 @@ def get_columns(database_connection, table_name):
 
 def run_query(database_connection, sql_query):
     conn = database_connection
-    cursor = conn.cursor()
-    cursor.execute(sql_query)
-    results = cursor.fetchall()
-    return results
+    df = pandas.read_sql(sql_query, conn)
+    return df
 
 
 def drop_tables(database_connection, tables):

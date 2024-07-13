@@ -1,3 +1,5 @@
+import sys
+
 import requests
 import datetime
 import os
@@ -15,6 +17,13 @@ logger = logger_helper.get_logger(__name__)
 def download_file(url: str, save_file_path):
     logger.info(f"Fetching start list from url: {url} and saving to {save_file_path}")
     response = requests.get(url)
+    try:
+        response.raise_for_status()
+    except Exception as e:
+        logger.exception(e)
+        logger.error(f"Failed to get successful response from url '{url}'")
+        logger.info(f"Exiting program")
+        sys.exit(1)
 
     logger.info(f"successfully retrieved data {response.status_code}")
     with open(save_file_path, "w", encoding="utf-8") as _file:
@@ -43,9 +52,10 @@ def insert_start_list_file_data_to_database(data_source, year, race_name, url, f
 
 
 class StartListScraper(ABC):
-    def __init__(self, year: int, race_name: int, data_source_name: str):
+    def __init__(self, year: int, race_name: str, data_source_name: str):
         self.year = year
         self.race_name = race_name
+        self.race_name_dashed = self.race_name.replace(" ", "-")
         self.start_list_url = self.get_start_list_raw_url()
         self.data_source_name = data_source_name
 
@@ -57,7 +67,7 @@ class StartListScraper(ABC):
         return os.path.join(os.getcwd(), "src", "data", "start_lists")
 
     def get_start_list_raw_file_name(self) -> str:
-        return f"{self.data_source_name}-{self.race_name}-{self.year}.html"
+        return f"{self.data_source_name}-{self.race_name_dashed}-{self.year}.html"
 
     def get_start_list_raw_file_path(self) -> str:
         return os.path.join(self.get_start_list_raw_dir_path(), self.get_start_list_raw_file_name())
@@ -90,14 +100,11 @@ class StartListScraper(ABC):
             file_path=self.get_start_list_raw_file_path()
         )
 
-        logger.info(f"Fetching raw html data from the database")
         html_string = model_api.get_start_list_raw_html(
             self.data_source_name,
             self.year,
             self.race_name
         )
         df = self.transform_raw_start_list(html_string)
-
-        print(f"Teams: {df['team_name'].unique()}")
-        print(f"Unique Riders: {len(df['cyclist_name'].unique())}")
-        return df
+        model_api.insert_start_list_riders(df, self.race_name, self.year)
+        return True

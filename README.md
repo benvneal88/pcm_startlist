@@ -13,6 +13,9 @@ Launch command prompt and type in the following command to export a PCM .cdb dat
 `SQLiteExporter.exe -export "Pro Cycling Manager 2024\Cloud\<pcm user name>\Career_1.cdb"`
 
 
+###
+    cd src
+    python ./run.py --pcm_database_name "worlddb_2024" --race_name "Tour de France" --year 2024
 
 ### Fetch Start List
     from scrapers import procyclingstats 
@@ -20,6 +23,7 @@ Launch command prompt and type in the following command to export a PCM .cdb dat
     race_name = "tour-de-france"
     scraper = procyclingstats.ProCyclingStatsStartListScraper(year, race_name)
     scraper.sync_start_list_to_database(refresh=False)
+
 
 ### Maintenance
 
@@ -39,7 +43,11 @@ Extract Data from PCM Database
 Inspect Table Data
 
     from src.model import model_api
-    print(model_api.run_query("select * from stg_start_list_files"))
+    from src.utils import database_helper
+    database_connection = database_helper.get_database_connection(model_api.APP_DATABASE_FILE_NAME)
+    print(database_helper.run_query(database_connection, "select * from stg_start_list_files"))
+    print(database_helper.run_query(database_connection, "select * from pcm_stg_teams"))
+    print(database_helper.run_query(database_connection, "select * from pcm_stg_races"))
 
 Delete Tables
 
