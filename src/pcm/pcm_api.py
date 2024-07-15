@@ -16,7 +16,7 @@ PCM_DATABASE_FIELD_MAPPINGS = {
     "2024":
         {
             "DYN_team": {"IDteam": "team_id", "gene_sz_shortname": "team_short_name", "gene_sz_name": "team_name"},
-            "STA_race": {"IDrace": "race_id", "gene_sz_race_name": "race_name", "gene_sz_abbreviation": "race_abbrreviation"},
+            "STA_race": {"IDrace": "race_id", "gene_sz_race_name": "race_name", "gene_sz_abbreviation": "race_abbrreviation", "gene_sz_filename": "filename"},
             "DYN_cyclist": {"IDcyclist": "cyclist_id", "fkIDteam": "team_id", "gene_sz_lastname": "cyclist_last_name", "gene_sz_firstname": "cyclist_first_name"},
         }
 }
@@ -24,7 +24,7 @@ PCM_DATABASE_FIELD_MAPPINGS = {
 # def get_race_start_list_file_name(database_connection, race_id: int):
 #     races_df = get_object(database_connection, "race")
 #     df = races_df[races_df['race_id'] == race_id]
-#     start_list_file_name = f"{df.race_filename}.xml"
+#     start_list_file_name = f"{df.filename}.xml"
 #     logger.info(f"start_list file name: '{start_list_file_name}'")
 #     return start_list_file_name
 
@@ -90,22 +90,12 @@ def get_database_file(database_name):
 
 
 def validate_pcm_database(database_name):
+    logger.info(f"Validating PCM database: '{database_name}'")
     database_file = get_database_file(database_name)
     if os.path.exists(database_file):
         logger.info(f"✅ PCM Database {database_name} exists at {database_file}")
+        model_api.create_model()
         return True
     logger.info(f"❌ PCM Database {database_name} does not exist at {database_file}")
     return False
-
-
-def validate_race_name(database_name, race_name):
-    races = list_races(database_name, race_name)
-
-
-def join_start_list_to_pcm(startlist_df, cyclists_teams):
-    logger.info(f"pcm:\n{cyclists_teams}")
-    logger.info(f"startlist:\n{startlist_df}")
-
-    for tuple in startlist_df.itertuples():
-        rider_name = getattr(tuple, rider_name, None)
 

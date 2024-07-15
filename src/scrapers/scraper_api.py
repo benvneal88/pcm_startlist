@@ -64,7 +64,7 @@ class StartListScraper(ABC):
         pass
 
     def get_start_list_raw_dir_path(self) -> str:
-        return os.path.join(os.getcwd(), "src", "data", "start_lists")
+        return os.path.join(os.getcwd(), "src", "data", "scraped_start_lists")
 
     def get_start_list_raw_file_name(self) -> str:
         return f"{self.data_source_name}-{self.race_name_dashed}-{self.year}.html"

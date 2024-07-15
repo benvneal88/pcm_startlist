@@ -25,7 +25,8 @@ CREATE TABLE IF NOT EXISTS pcm_stg_races(
     database_name text,
     race_id integer,
     race_name text,
-    race_abbrreviation text
+    race_abbrreviation text,
+    filename text
 );
 
 
@@ -49,7 +50,7 @@ CREATE TABLE IF NOT EXISTS pcm_stg_cyclists(
 
 -- MODEL --
 
-CREATE TABLE IF NOT EXISTS tbl_editions(
+CREATE TABLE IF NOT EXISTS tbl_databases(
     id integer PRIMARY KEY,
     name text
 );
@@ -57,11 +58,11 @@ CREATE TABLE IF NOT EXISTS tbl_editions(
 
 CREATE TABLE IF NOT EXISTS tbl_teams(
     id integer PRIMARY KEY,
-    edition_id integer,
+    database_id integer,
     pcm_team_id integer,
     team_name text,
     team_shortname text,
-    FOREIGN KEY (edition_id) REFERENCES tbl_editions (id)
+    FOREIGN KEY (database_id) REFERENCES tbl_databases (id)
          ON DELETE CASCADE
          ON UPDATE NO ACTION
 );
@@ -69,12 +70,12 @@ CREATE TABLE IF NOT EXISTS tbl_teams(
 
 CREATE TABLE IF NOT EXISTS tbl_races(
     id integer PRIMARY KEY,
-    edition_id integer,
+    database_id integer,
     pcm_race_id integer,
     race_name text,
     race_abbrreviation text,
-    race_filename text,
-    FOREIGN KEY (edition_id) REFERENCES tbl_editions (id)
+    filename text,
+    FOREIGN KEY (database_id) REFERENCES tbl_databases (id)
          ON DELETE CASCADE
          ON UPDATE NO ACTION
 );
