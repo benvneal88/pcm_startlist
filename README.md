@@ -1,26 +1,34 @@
-# pcm_start_list
+# Start List Generator for Pro Cycling Manager
+
+This program generates race start lists for use in single player races by 
+pulling real start list data from the internet and generating the PCM start list files for the database of your choosing.
+
+1. Scrapes the web for the requested race start list
+2. Extracts the cyclists, teams and races from the PCM database
+3. Matches start list to the PCM database and generate a PCM start list XML
+
+## Prerequisites
+
+1. Clone of this repository
+2. A PCM Database extracted to the folder `src/data/pcm_dbs/<database_name>.sqlite`
 
 
-python3 -m pip install -e .
-
-create start list for pcm
-
-
-Export a Pro Cycling Manager database (.cdb) to a SQLite Database
+### Export a PCM database (.cdb) to a SQLite Database
 
 Download SQLiteExporter.exe
 Launch command prompt and type in the following command to export a PCM .cdb database
 `SQLiteExporter.exe -export "Pro Cycling Manager 2024\Cloud\<pcm user name>\Career_1.cdb"`
 
 
-### QuickStart
+## Generating a New Start List
     cd src
     python ./run.py --pcm_database_name "worlddb_2024" --race_name "Tour de France" --year 2024
+    python ./run.py --pcm_database_name "worlddb_2024" --race_name "Giro d Italia" --year 2024
 
 
-### Maintenance
+### Troubleshooting
 
-### Fetch Start List
+#### Fetch Start List
     from scrapers import procyclingstats 
     year = 2024
     race_name = "tour-de-france"
@@ -28,7 +36,7 @@ Launch command prompt and type in the following command to export a PCM .cdb dat
     scraper.sync_start_list_to_database(refresh=False)
 
 
-Extract Data from PCM Database
+#### Extract Data from PCM Database
 
     from src.pcm import pcm_api, extract
     from src.utils import database_helper

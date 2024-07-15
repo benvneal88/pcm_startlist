@@ -43,11 +43,9 @@ def insert_start_list_file_data_to_database(data_source, year, race_name, url, f
         "race_name": [race_name],
         "url": [url],
         "blob_content": [file_bytes.decode('utf-8')],
-
     }
 
     df = pandas.DataFrame.from_dict(row_dict)
-
     model_api.insert_start_list_files(df)
 
 
@@ -72,11 +70,17 @@ class StartListScraper(ABC):
     def get_start_list_raw_file_path(self) -> str:
         return os.path.join(self.get_start_list_raw_dir_path(), self.get_start_list_raw_file_name())
 
+    def does_start_list_raw_file_exist(self):
+        if os.path.exists(self.get_start_list_raw_file_path()):
+            return True
+        else:
+            return False
+
     @abstractmethod
     def transform_raw_start_list(self, html_string) -> List[Dict]:
         pass
 
-    def get_start_list_raw(self, refresh: bool = False) -> str:
+    def get_start_list_raw(self, refresh: bool = False) -> bytes:
         """"Fetches Start List raw html data"""
         start_list_raw_file_path = self.get_start_list_raw_file_path()
         if not os.path.exists(self.get_start_list_raw_dir_path()):
@@ -86,12 +90,18 @@ class StartListScraper(ABC):
 
         with open(start_list_raw_file_path, "rb") as f:
             raw_text = f.read()
+
         return raw_text
 
     def sync_start_list_to_database(self, refresh=False):
-        if refresh:
+        if refresh or not self.does_start_list_raw_file_exist():
+            logger.info(f"Fetching latest start list from: '{self.start_list_url}'")
             self.get_start_list_raw(refresh=True)
-            logger.info(f"Inserting raw html data into the database: '{self.start_list_url}'")
+        elif not self.does_start_list_raw_file_exist():
+            logger.info(f"Start list doesn't exist, fetching latest start list from: '{self.start_list_url}'")
+            self.get_start_list_raw(refresh=True)
+
+        logger.info(f"Inserting raw html data into the database: '{self.start_list_url}'")
         insert_start_list_file_data_to_database(
             data_source=self.data_source_name,
             year=self.year,
