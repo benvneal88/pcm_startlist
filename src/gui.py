@@ -1,12 +1,13 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
-from src.model import model_api
+#from src.model import model_api
 
 
 # Function to handle adding new PCM Database
 def add_new_database():
     def submit_new_db():
         db_path = new_db_entry.get()
+        db_name = new_db_name_entry.get()
         if db_path.endswith('.cdb'):
             messagebox.showinfo("Add PCM Database", f"Database added: {db_path}")
             pcm_db_combobox['values'] = (*pcm_db_combobox['values'], db_path)
@@ -24,6 +25,10 @@ def add_new_database():
     tk.Label(add_db_window, text="Enter .cdb file path:").pack(padx=10, pady=5)
     new_db_entry = ttk.Entry(add_db_window, width=50)
     new_db_entry.pack(padx=10, pady=5)
+
+    tk.Label(add_db_window, text="Name e.g. 'worlddb_24'").pack(padx=10, pady=5)
+    new_db_name_entry = ttk.Entry(add_db_window, width=50)
+    new_db_name_entry.pack(padx=10, pady=5)
     ttk.Button(add_db_window, text="Browse", command=browse_db).pack(padx=10, pady=5)
     ttk.Button(add_db_window, text="Submit", command=submit_new_db).pack(padx=10, pady=10)
 
@@ -32,12 +37,12 @@ def add_new_database():
 def add_new_start_list():
     def submit_new_list():
         list_url = new_list_entry.get()
-        if list_url.startswith('http://') or list_url.startswith('https://'):
+        if 'procyclingstats.com' in list_url.lower() and (list_url.startswith('http://') or list_url.startswith('https://')):
             messagebox.showinfo("Add Start List", f"Start list added: {list_url}")
             start_list_combobox['values'] = (*start_list_combobox['values'], list_url)
             add_list_window.destroy()
         else:
-            messagebox.showerror("Error", "Invalid URL. Please enter a valid URL")
+            messagebox.showerror("Error", "Invalid URL. Only start lists from 'procyclingstats.com' have a supported scraper")
 
     add_list_window = tk.Toplevel(root)
     add_list_window.title("Add a Start List")
