@@ -21,7 +21,6 @@ Launch command prompt and type in the following command to export a PCM .cdb dat
 
 
 ## Generating a New Start List
-    cd src
     python ./run.py --pcm_database_name "worlddb_2024" --race_name "Tour de France" --year 2024
     python ./run.py --pcm_database_name "worlddb_2024" --race_name "Giro d Italia" --year 2024
 
@@ -53,16 +52,16 @@ Inspect Table Data
 
     from src.model import model_api
     from src.utils import database_helper
-    database_connection = database_helper.get_database_connection(model_api.APP_DATABASE_FILE_NAME)
+    database_connection = database_helper.get_database_connection(model_api.APP_DATABASE_FILE)
     print(database_helper.run_query(database_connection, "select * from stg_start_list_files"))
     print(database_helper.run_query(database_connection, "select * from pcm_stg_teams"))
     print(database_helper.run_query(database_connection, "select * from pcm_stg_races"))
-
+quit()
 Delete Tables
 
     from src.model import model_api
     model_api.delete_model_tables(['pcm_stg_cyclists','pcm_stg_teams','pcm_stg_races'])
-    model_api.delete_model_tables(['pcm_stg_races'])
+    model_api.delete_model_tables(['pcm_stg_teams'])
 
 
 Create Tables

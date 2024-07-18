@@ -21,7 +21,7 @@ OBJECT_TABLE_MAPPING = {
 
 
 def get_start_list_data(pcm_database_name, race_name, year):
-    database_connection = database_helper.get_database_connection(APP_DATABASE_FILE_NAME)
+    database_connection = database_helper.get_database_connection(APP_DATABASE_FILE)
     start_list_cyclists_df = database_helper.run_query(database_connection, f"select team_name, cyclist_first_name, cyclist_last_name from stg_start_list_cyclists where race_name = '{race_name}' and year = {year}")
 
     get_teams_cyclists_sql = f"""
@@ -127,7 +127,7 @@ def create_model():
 
     create_tables_sql = create_model_sql.split(';')
 
-    conn = database_helper.get_database_connection(APP_DATABASE_FILE_NAME)
+    conn = database_helper.get_database_connection(APP_DATABASE_FILE)
     # Execute every command from the input file
     for create_table_sql in create_tables_sql:
         logger.debug(f"Executing DDL:\n {create_table_sql}")
@@ -138,12 +138,12 @@ def create_model():
 
 
 def delete_model_tables(drop_tables):
-    conn = database_helper.get_database_connection(APP_DATABASE_FILE_NAME)
+    conn = database_helper.get_database_connection(APP_DATABASE_FILE)
     database_helper.drop_tables(conn, drop_tables)
 
 
 def check_for_pcm_data(pcm_database_name):
-    database_connection = database_helper.get_database_connection(APP_DATABASE_FILE_NAME)
+    database_connection = database_helper.get_database_connection(APP_DATABASE_FILE)
 
     tables_to_check_dict = {
         "pcm_stg_teams": {"minimum_count": 30},
@@ -164,7 +164,7 @@ def check_for_pcm_data(pcm_database_name):
 
 
 def check_for_pcm_race(pcm_database_name, race_name):
-    database_connection = database_helper.get_database_connection(APP_DATABASE_FILE_NAME)
+    database_connection = database_helper.get_database_connection(APP_DATABASE_FILE)
     logger.info(f"Checking PCM for race with name '{race_name}' and database_name '{pcm_database_name}'")
     df = database_helper.run_query(database_connection, f"select race_id, LOWER(race_name) as race_name, filename from pcm_stg_races") #{OBJECT_TABLE_MAPPING.get('race')}
     #import pdb; pdb.set_trace()
@@ -184,7 +184,7 @@ def check_for_pcm_race(pcm_database_name, race_name):
 
 
 def delete_old_pcm_data(pcm_database_name, table_name):
-    database_connection = database_helper.get_database_connection(APP_DATABASE_FILE_NAME)
+    database_connection = database_helper.get_database_connection(APP_DATABASE_FILE)
     delete_sql = f"delete from {table_name} where database_name = '{pcm_database_name}'"
     logger.info(f"Deleting existing data: '{delete_sql}'")
     cursor = database_connection.cursor()
@@ -196,7 +196,7 @@ def insert_pcm_object(pcm_database_name, object_name, df):
     assert object_name in OBJECT_TABLE_MAPPING.keys()
     table_name = OBJECT_TABLE_MAPPING.get(object_name)
     delete_old_pcm_data(pcm_database_name, table_name)
-    database_connection = database_helper.get_database_connection(APP_DATABASE_FILE_NAME)
+    database_connection = database_helper.get_database_connection(APP_DATABASE_FILE)
     logger.info(f"Inserting {len(df)} rows into table '{table_name}'")
     df.to_sql(
         name=table_name,
@@ -208,10 +208,10 @@ def insert_pcm_object(pcm_database_name, object_name, df):
 
 
 def insert_start_list_files(df):
-    database_connection = database_helper.get_database_connection(APP_DATABASE_FILE_NAME)
+    database_connection = database_helper.get_database_connection(APP_DATABASE_FILE)
     df.to_sql(
         name="stg_start_list_files",
-        con=database_helper.get_database_connection(APP_DATABASE_FILE_NAME),
+        con=database_helper.get_database_connection(APP_DATABASE_FILE),
         if_exists="append",
         index=False
     )
@@ -223,7 +223,7 @@ def insert_start_list_files(df):
 
 def insert_start_list_riders(df, race_name, year):
     logger.info(f"Inserting {len(df)} rows into stg_start_list_cyclists")
-    database_connection = database_helper.get_database_connection(APP_DATABASE_FILE_NAME)
+    database_connection = database_helper.get_database_connection(APP_DATABASE_FILE)
     delete_sql = f"delete from stg_start_list_cyclists where year = {year} and race_name = '{race_name}'"
     logger.info(f"Deleting existing data: '{delete_sql}'")
     cursor = database_connection.cursor()
@@ -240,7 +240,7 @@ def insert_start_list_riders(df, race_name, year):
 
 def does_start_list_exist(race_name, year):
     logger.info(f"Checking for Start Lists...")
-    database_connection = database_helper.get_database_connection(APP_DATABASE_FILE_NAME)
+    database_connection = database_helper.get_database_connection(APP_DATABASE_FILE)
     df = database_helper.run_query(database_connection, f"select * from stg_start_list_cyclists where race_name = '{race_name}' and year = {year}")
     if len(df) > 0:
         df_last_download = database_helper.run_query(database_connection,
@@ -253,6 +253,6 @@ def does_start_list_exist(race_name, year):
 
 
 def get_start_list_raw_html(data_source, year, race_name):
-    database_connection = database_helper.get_database_connection(APP_DATABASE_FILE_NAME)
+    database_connection = database_helper.get_database_connection(APP_DATABASE_FILE)
     df = database_helper.run_query(database_connection, f"select blob_content from stg_start_list_files where data_source = '{data_source}' and year = {year} and race_name = '{race_name}' order by downloaded_at desc")
     return df["blob_content"].iloc[0]

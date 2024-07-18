@@ -5,6 +5,7 @@ from src.utils import logger_helper
 from src.utils import database_helper
 logger = logger_helper.get_logger(__name__)
 
+
 def get_database_connection(database_file):
     try:
         conn = sqlite3.connect(
