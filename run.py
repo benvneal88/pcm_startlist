@@ -10,6 +10,8 @@ def main():
     parser.add_argument('--race_name', type=str, required=True, help='Name of the race')
     parser.add_argument('--year', type=int, required=True, help='Year of the race')
 
+    parser.add_argument('--add_pcm_database_path', type=str, required=False, help='Path to the .cdb')
+
     # Parse the arguments
     args = parser.parse_args()
 
