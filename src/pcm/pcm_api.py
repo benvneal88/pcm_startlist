@@ -18,6 +18,12 @@ PCM_DATABASE_FIELD_MAPPINGS = {
             "DYN_team": {"IDteam": "team_id", "gene_sz_shortname": "team_short_name", "gene_sz_name": "team_name"},
             "STA_race": {"IDrace": "race_id", "gene_sz_race_name": "race_name", "gene_sz_abbreviation": "race_abbrreviation", "gene_sz_filename": "filename"},
             "DYN_cyclist": {"IDcyclist": "cyclist_id", "fkIDteam": "team_id", "gene_sz_lastname": "cyclist_last_name", "gene_sz_firstname": "cyclist_first_name"},
+        },
+    "2023":
+        {
+            "DYN_team": {"IDteam": "team_id", "gene_sz_shortname": "team_short_name", "gene_sz_name": "team_name"},
+            "STA_race": {"IDrace": "race_id", "gene_sz_race_name": "race_name", "gene_sz_abbreviation": "race_abbrreviation", "gene_sz_filename": "filename"},
+            "DYN_cyclist": {"IDcyclist": "cyclist_id", "fkIDteam": "team_id", "gene_sz_lastname": "cyclist_last_name", "gene_sz_firstname": "cyclist_first_name"},
         }
 }
 
@@ -77,9 +83,9 @@ def list_races(database_name, name_like=None):
     return df
 
 
-def load_model(database_name):
+def load_model(database_name, pcm_version="2024"):
     for object_name in ["team", "cyclist", "race"]:
-        df = get_object(database_name, object_name)
+        df = get_object(database_name, object_name, pcm_version)
         model_api.insert_pcm_object(database_name, object_name, df)
 
 

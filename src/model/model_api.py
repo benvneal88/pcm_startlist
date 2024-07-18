@@ -9,7 +9,7 @@ from src.utils import logger_helper
 from src.utils import database_helper
 logger = logger_helper.get_logger(__name__)
 
-APP_DATABASE_FILE_NAME = "start_list_database.db"
+APP_DATABASE_FILE_NAME = "pcm_startlist.db"
 
 APP_DATABASE_FILE = os.path.join(os.getcwd(), "src", "data", "app_dbs", APP_DATABASE_FILE_NAME)
 
@@ -20,9 +20,9 @@ OBJECT_TABLE_MAPPING = {
 }
 
 
-def get_start_list_data(pcm_database_name, race_name, year):
+def get_start_list_data(pcm_database_name, race_name, race_year):
     database_connection = database_helper.get_database_connection(APP_DATABASE_FILE)
-    start_list_cyclists_df = database_helper.run_query(database_connection, f"select team_name, cyclist_first_name, cyclist_last_name from stg_start_list_cyclists where race_name = '{race_name}' and year = {year}")
+    start_list_cyclists_df = database_helper.run_query(database_connection, f"select team_name, cyclist_first_name, cyclist_last_name from stg_start_list_cyclists where race_name = '{race_name}' and race_year = {race_year}")
 
     get_teams_cyclists_sql = f"""
         select 
@@ -47,9 +47,13 @@ def fuzzy_match(row, roster_df):
     cyclist_first_name = row['cyclist_first_name']
     cyclist_last_name = row['cyclist_last_name']
 
+    if 'red bull' in team_name:
+        team_name = team_name.replace("red bull ", "")
+
     # Get the best match for the team_name
     team_match = process.extractOne(team_name, roster_df['team_name'], scorer=fuzz.token_sort_ratio)
     if team_match[1] < 80:  # if match score is below 80, consider it a poor match
+        logger.error(f"Can't find match for team '{team_name}'")
         return pd.Series([None, None])
 
     matched_team_name = team_match[0]
@@ -67,6 +71,10 @@ def fuzzy_match(row, roster_df):
         if not best_match.empty:
             return pd.Series([best_match.iloc[0]['team_id'], best_match.iloc[0]['cyclist_id']])
 
+    # if no match yet, handle one last name to two last names condition "cort" maps to "cort neilsen"
+    #
+
+    logger.error(f"Can't find match for cyclist '{cyclist_first_name}' - '{cyclist_last_name}'")
     return pd.Series([None, None])
 
 
@@ -221,10 +229,10 @@ def insert_start_list_files(df):
     database_connection.close()
 
 
-def insert_start_list_riders(df, race_name, year):
+def insert_start_list_riders(df, race_name, race_year):
     logger.info(f"Inserting {len(df)} rows into stg_start_list_cyclists")
     database_connection = database_helper.get_database_connection(APP_DATABASE_FILE)
-    delete_sql = f"delete from stg_start_list_cyclists where year = {year} and race_name = '{race_name}'"
+    delete_sql = f"delete from stg_start_list_cyclists where race_year = {race_year} and race_name = '{race_name}'"
     logger.info(f"Deleting existing data: '{delete_sql}'")
     cursor = database_connection.cursor()
     cursor.execute(delete_sql)
@@ -238,21 +246,21 @@ def insert_start_list_riders(df, race_name, year):
     database_connection.close()
 
 
-def does_start_list_exist(race_name, year):
+def does_start_list_exist(race_name, race_year):
     logger.info(f"Checking for Start Lists...")
     database_connection = database_helper.get_database_connection(APP_DATABASE_FILE)
-    df = database_helper.run_query(database_connection, f"select * from stg_start_list_cyclists where race_name = '{race_name}' and year = {year}")
+    df = database_helper.run_query(database_connection, f"select * from stg_start_list_cyclists where race_name = '{race_name}' and race_year = {race_year}")
     if len(df) > 0:
         df_last_download = database_helper.run_query(database_connection,
-                                       f"select downloaded_at from stg_start_list_files where year = {year} and race_name = '{race_name}' order by downloaded_at desc")
+                                       f"select downloaded_at from stg_start_list_files where race_year = {race_year} and race_name = '{race_name}' order by downloaded_at desc")
         last_downloaded_at = df_last_download['downloaded_at'].iloc[0]
-        logger.info(f"✅ Start List for '{year} - {race_name}' is downloaded as of '{last_downloaded_at}'")
+        logger.info(f"✅ Start List for '{race_year} - {race_name}' is downloaded as of '{last_downloaded_at}'")
         return True
-    logger.info(f"❌ Start List for '{year} - {race_name}' has not been downloaded yet")
+    logger.info(f"❌ Start List for '{race_year} - {race_name}' has not been downloaded yet")
     return False
 
 
-def get_start_list_raw_html(data_source, year, race_name):
+def get_start_list_raw_html(data_source, race_year, race_name):
     database_connection = database_helper.get_database_connection(APP_DATABASE_FILE)
-    df = database_helper.run_query(database_connection, f"select blob_content from stg_start_list_files where data_source = '{data_source}' and year = {year} and race_name = '{race_name}' order by downloaded_at desc")
+    df = database_helper.run_query(database_connection, f"select blob_content from stg_start_list_files where data_source = '{data_source}' and race_year = {race_year} and race_name = '{race_name}' order by downloaded_at desc")
     return df["blob_content"].iloc[0]

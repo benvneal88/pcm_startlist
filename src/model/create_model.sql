@@ -2,7 +2,7 @@
 
 CREATE TABLE IF NOT EXISTS stg_start_list_files(
     data_source text,
-    year integer,
+    race_year integer,
     race_name text,
     url text,
     blob_content text,
@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS stg_start_list_files(
 );
 
 CREATE TABLE IF NOT EXISTS stg_start_list_cyclists(
-    year integer,
+    race_year integer,
     race_name text,
     team_name text,
     cyclist_name text,

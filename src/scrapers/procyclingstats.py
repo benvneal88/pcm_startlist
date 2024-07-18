@@ -8,11 +8,11 @@ logger = logger_helper.get_logger(__name__)
 
 
 class ProCyclingStatsStartListScraper(StartListScraper):
-    def __init__(self, year, race_name):
-        super().__init__(year=year, race_name=race_name, data_source_name="procyclingstats")
+    def __init__(self, race_year, race_name):
+        super().__init__(race_year=race_year, race_name=race_name, data_source_name="procyclingstats")
 
     def get_start_list_raw_url(self) -> str:
-        url = f"https://www.procyclingstats.com/race/{self.race_name_dashed}/{self.year}/startlist/startlist"
+        url = f"https://www.procyclingstats.com/race/{self.race_name_dashed}/{self.race_year}/startlist/startlist"
         return url
 
     def transform_raw_start_list(self, html_string) -> List[Dict]:
@@ -84,7 +84,7 @@ class ProCyclingStatsStartListScraper(StartListScraper):
         df["cyclist_first_name"] = df["rider_name"].apply(
             lambda x: ' '.join(word for word in x.split() if not word.isupper())).str.lower()
         df = df.drop(columns=["rider_name"])
-        df["year"] = self.year
+        df["race_year"] = self.race_year
         df["race_name"] = self.race_name
 
         return df

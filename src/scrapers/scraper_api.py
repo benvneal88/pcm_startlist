@@ -32,14 +32,14 @@ def download_file(url: str, save_file_path):
     logger.info(f"saved data to file {save_file_path}")
 
 
-def insert_start_list_file_data_to_database(data_source, year, race_name, url, file_path):
+def insert_start_list_file_data_to_database(data_source, race_year, race_name, url, file_path):
     with open(file_path, "rb") as file:
         file_bytes = file.read()
 
-    logger.info(f"Inserting into table '{year}' - '{race_name}' - '{url}' - '{data_source}'")
+    logger.info(f"Inserting into table '{race_year}' - '{race_name}' - '{url}' - '{data_source}'")
     row_dict = {
         "data_source": [data_source],
-        "year": [year],
+        "race_year": [race_year],
         "race_name": [race_name],
         "url": [url],
         "blob_content": [file_bytes.decode('utf-8')],
@@ -50,8 +50,8 @@ def insert_start_list_file_data_to_database(data_source, year, race_name, url, f
 
 
 class StartListScraper(ABC):
-    def __init__(self, year: int, race_name: str, data_source_name: str):
-        self.year = year
+    def __init__(self, race_year: int, race_name: str, data_source_name: str):
+        self.race_year = race_year
         self.race_name = race_name
         self.race_name_dashed = self.race_name.replace(" ", "-")
         self.start_list_url = self.get_start_list_raw_url()
@@ -62,10 +62,10 @@ class StartListScraper(ABC):
         pass
 
     def get_start_list_raw_dir_path(self) -> str:
-        return os.path.join(os.getcwd(), "src", "data", "scraped_start_lists")
+        return os.path.join(os.getcwd(), "src", "data", "source_start_lists")
 
     def get_start_list_raw_file_name(self) -> str:
-        return f"{self.data_source_name}-{self.race_name_dashed}-{self.year}.html"
+        return f"{self.data_source_name}-{self.race_name_dashed}-{self.race_year}.html"
 
     def get_start_list_raw_file_path(self) -> str:
         return os.path.join(self.get_start_list_raw_dir_path(), self.get_start_list_raw_file_name())
@@ -104,7 +104,7 @@ class StartListScraper(ABC):
         logger.info(f"Inserting raw html data into the database: '{self.start_list_url}'")
         insert_start_list_file_data_to_database(
             data_source=self.data_source_name,
-            year=self.year,
+            race_year=self.race_year,
             race_name=self.race_name,
             url=self.start_list_url,
             file_path=self.get_start_list_raw_file_path()
@@ -112,9 +112,9 @@ class StartListScraper(ABC):
 
         html_string = model_api.get_start_list_raw_html(
             self.data_source_name,
-            self.year,
+            self.race_year,
             self.race_name
         )
         df = self.transform_raw_start_list(html_string)
-        model_api.insert_start_list_riders(df, self.race_name, self.year)
+        model_api.insert_start_list_riders(df, self.race_name, self.race_year)
         return True
