@@ -25,9 +25,14 @@ def download_file(url: str, save_file_path):
         logger.info(f"Exiting program")
         sys.exit(1)
 
+    response_text = response.text
+    if "Page not found" in response_text:
+        logger.error(f"Page not found! '{url}'")
+        sys.exit(1)
+
     logger.info(f"successfully retrieved data {response.status_code}")
     with open(save_file_path, "w", encoding="utf-8") as _file:
-        _file.write(response.text)
+        _file.write()
 
     logger.info(f"saved data to file {save_file_path}")
 
@@ -52,7 +57,7 @@ def insert_start_list_file_data_to_database(data_source, race_year, race_name, u
 class StartListScraper(ABC):
     def __init__(self, race_year: int, race_name: str, data_source_name: str):
         self.race_year = race_year
-        self.race_name = race_name
+        self.race_name = race_name.replace("'", " ")
         self.race_name_dashed = self.race_name.replace(" ", "-")
         self.start_list_url = self.get_start_list_raw_url()
         self.data_source_name = data_source_name
@@ -94,12 +99,15 @@ class StartListScraper(ABC):
         return raw_text
 
     def sync_start_list_to_database(self, refresh=False):
-        if refresh or not self.does_start_list_raw_file_exist():
+        raw_file_exists = self.does_start_list_raw_file_exist()
+        if refresh or not raw_file_exists:
             logger.info(f"Fetching latest start list from: '{self.start_list_url}'")
             self.get_start_list_raw(refresh=True)
         elif not self.does_start_list_raw_file_exist():
             logger.info(f"Start list doesn't exist, fetching latest start list from: '{self.start_list_url}'")
             self.get_start_list_raw(refresh=True)
+        else:
+            logger.info(f"Existing start list exists: '{self.get_start_list_raw_file_path()}'")
 
         logger.info(f"Inserting raw html data into the database: '{self.start_list_url}'")
         insert_start_list_file_data_to_database(
@@ -115,6 +123,13 @@ class StartListScraper(ABC):
             self.race_year,
             self.race_name
         )
-        df = self.transform_raw_start_list(html_string)
+
+        try:
+            df = self.transform_raw_start_list(html_string)
+        except Exception as e:
+            logger.exception(e)
+            logger.error("Failed to transform the html into a start list dataframe")
+            return False
+
         model_api.insert_start_list_riders(df, self.race_name, self.race_year)
         return True

@@ -19,10 +19,13 @@ OBJECT_TABLE_MAPPING = {
     "cyclist": "pcm_stg_cyclists",
 }
 
+def escape_text_sql(text):
+    text = text.replace("'", "''")
+    return text
 
 def get_start_list_data(pcm_database_name, race_name, race_year):
     database_connection = database_helper.get_database_connection(APP_DATABASE_FILE)
-    start_list_cyclists_df = database_helper.run_query(database_connection, f"select team_name, cyclist_first_name, cyclist_last_name from stg_start_list_cyclists where race_name = '{race_name}' and race_year = {race_year}")
+    start_list_cyclists_df = database_helper.run_query(database_connection, f"select team_name, cyclist_first_name, cyclist_last_name from stg_start_list_cyclists where race_name = '{escape_text_sql(race_name)}' and race_year = {race_year}")
 
     get_teams_cyclists_sql = f"""
         select 
@@ -33,11 +36,13 @@ def get_start_list_data(pcm_database_name, race_name, race_year):
             LOWER(c.cyclist_last_name) as cyclist_last_name
         from pcm_stg_teams t 
             inner join pcm_stg_cyclists c on t.team_id = c.team_id
-        where t.database_name = '{pcm_database_name}' and c.database_name = '{pcm_database_name}'
+        where t.database_name = '{pcm_database_name}' 
+            and c.database_name = '{pcm_database_name}'
     """
     pcm_teams_cyclists_df = database_helper.run_query(database_connection, get_teams_cyclists_sql)
 
     final_df = fuzzy_join(start_list_df=start_list_cyclists_df, pcm_roster_df=pcm_teams_cyclists_df)
+    validate_start_list_df(start_list_df=start_list_cyclists_df, pcm_df=pcm_teams_cyclists_df, final_df=final_df)
 
     return final_df
 
@@ -86,6 +91,19 @@ def fuzzy_join(start_list_df, pcm_roster_df):
     matched_df = start_list_df.progress_apply(lambda row: fuzzy_match(row, pcm_roster_df), axis=1)
     matched_df.columns = ['team_id', 'cyclist_id']
     return pd.concat([start_list_df, matched_df], axis=1)
+
+
+def validate_start_list_df(start_list_df, pcm_df, final_df):
+    logger.info(f"Validating start list data...")
+    logger.info(f"Source record count: {len(start_list_df)}")
+
+    unmatched_count = final_df['cyclist_id'].isnull().sum()
+    logger.info(f"There are {unmatched_count} cyclists without matches ...")
+    logger.info(f"{final_df[final_df['cyclist_id'].isnull()]}")
+
+
+
+    #logger.info(f"Validating start list data...")
 
 
 def generate_xml_start_list(df, out_file):
@@ -177,18 +195,28 @@ def check_for_pcm_race(pcm_database_name, race_name):
     df = database_helper.run_query(database_connection, f"select race_id, LOWER(race_name) as race_name, filename from pcm_stg_races") #{OBJECT_TABLE_MAPPING.get('race')}
     #import pdb; pdb.set_trace()
     df = df.loc[df.race_name.str.contains(race_name), :]
-    if len(df) == 1:
+    if len(df) == 0:
+        logger.info(f"❌ Found no races in PCM from provided race name '{race_name}'. Check spelling!")
+        return None
+    elif len(df) == 1:
         found_race_id = df['race_id'].iloc[0]
         found_race_name = df['race_name'].iloc[0]
         found_file_name = df['filename'].iloc[0]
-        logger.info(f"✅ Found race '{found_race_name}' in PCM with id '{found_race_id}'")
-        return found_file_name
     elif len(df) > 1:
-        found_races = df["race_name"].tolist()
-        logger.info(f"❌ Found more than one race matching criteria '{race_name}' in PCM '{','.join(found_races)}'")
-    else:
-        logger.info(f"❌ Found no races in PCM from provided race name '{race_name}'. Check spelling!")
-    return None
+        #if more than one race is found attempt attempt an exact filter
+        df_exact_match = df[df['race_name'] == race_name]
+        if len(df_exact_match) == 0 or len(df_exact_match) > 1:
+            found_races = df["race_name"].tolist()
+            logger.info(f"❌ Found more than one race matching criteria '{race_name}' in PCM '{','.join(found_races)}'")
+            return None
+        else:
+            found_race_id = df_exact_match['race_id'].iloc[0]
+            found_race_name = df_exact_match['race_name'].iloc[0]
+            found_file_name = df_exact_match['filename'].iloc[0]
+
+    logger.info(f"✅ Found race '{found_race_name}' in PCM with id '{found_race_id}'")
+    return found_file_name
+
 
 
 def delete_old_pcm_data(pcm_database_name, table_name):
@@ -232,7 +260,7 @@ def insert_start_list_files(df):
 def insert_start_list_riders(df, race_name, race_year):
     logger.info(f"Inserting {len(df)} rows into stg_start_list_cyclists")
     database_connection = database_helper.get_database_connection(APP_DATABASE_FILE)
-    delete_sql = f"delete from stg_start_list_cyclists where race_year = {race_year} and race_name = '{race_name}'"
+    delete_sql = f"delete from stg_start_list_cyclists where race_year = {race_year} and race_name = '{escape_text_sql(race_name)}'"
     logger.info(f"Deleting existing data: '{delete_sql}'")
     cursor = database_connection.cursor()
     cursor.execute(delete_sql)
@@ -249,7 +277,8 @@ def insert_start_list_riders(df, race_name, race_year):
 def does_start_list_exist(race_name, race_year):
     logger.info(f"Checking for Start Lists...")
     database_connection = database_helper.get_database_connection(APP_DATABASE_FILE)
-    df = database_helper.run_query(database_connection, f"select * from stg_start_list_cyclists where race_name = '{race_name}' and race_year = {race_year}")
+
+    df = database_helper.run_query(database_connection, f"select * from stg_start_list_cyclists where race_name = '{escape_text_sql(race_name)}' and race_year = {race_year}")
     if len(df) > 0:
         df_last_download = database_helper.run_query(database_connection,
                                        f"select downloaded_at from stg_start_list_files where race_year = {race_year} and race_name = '{race_name}' order by downloaded_at desc")
@@ -262,5 +291,5 @@ def does_start_list_exist(race_name, race_year):
 
 def get_start_list_raw_html(data_source, race_year, race_name):
     database_connection = database_helper.get_database_connection(APP_DATABASE_FILE)
-    df = database_helper.run_query(database_connection, f"select blob_content from stg_start_list_files where data_source = '{data_source}' and race_year = {race_year} and race_name = '{race_name}' order by downloaded_at desc")
+    df = database_helper.run_query(database_connection, f"select blob_content from stg_start_list_files where data_source = '{data_source}' and race_year = {race_year} and race_name = '{escape_text_sql(race_name)}' order by downloaded_at desc")
     return df["blob_content"].iloc[0]

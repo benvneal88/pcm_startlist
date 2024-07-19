@@ -25,7 +25,7 @@ Launch command prompt and type in the following command to export a PCM .cdb dat
 
 ## Generating a New Start List
     python ./run.py --pcm_database_name "worlddb_2024" --race_name "Tour de France" --race_year 2024
-    python ./run.py --pcm_database_name "worlddb_2024" --race_name "Giro d Italia" --race_year 2024
+    python ./run.py --pcm_database_name "worlddb_2024" --race_name "Giro d'Italia" --race_year 2024
 
 
 ### Troubleshooting
@@ -54,12 +54,16 @@ Launch command prompt and type in the following command to export a PCM .cdb dat
 Inspect Table Data
 
 from src.model import model_api
-from src.utils import database_helper
-database_connection = database_helper.get_database_connection(model_api.APP_DATABASE_FILE)
+    from src.utils import database_helper
+    database_connection = database_helper.get_database_connection(model_api.APP_DATABASE_FILE)
     print(database_helper.run_query(database_connection, "select * from stg_start_list_files"))
     print(database_helper.run_query(database_connection, "select * from pcm_stg_teams"))
     print(database_helper.run_query(database_connection, "select * from pcm_stg_races"))
     print(database_helper.run_query(database_connection, "select * from pcm_stg_cyclists where cyclist_first_name = 'Magnus'"))
+
+    from src.model import model_api
+    df = model_api.get_start_list_data("worlddb_2024", "tour de france", 2024)
+    print(df[df['team_name'].str.contains('uno')])
 
 Delete Tables
 
