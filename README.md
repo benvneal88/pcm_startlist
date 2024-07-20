@@ -35,7 +35,7 @@ Launch command prompt and type in the following command to export a PCM .cdb dat
     race_year = 2024
     race_name = "tour-de-france"
     scraper = procyclingstats.ProCyclingStatsStartListScraper(race_year, race_name)
-    scraper.sync_start_list_to_database(refresh=False)
+    scraper.insert_start_list_raw(fetch_from_web=False)
 
 
 #### Extract Data from PCM Database
@@ -54,12 +54,16 @@ Launch command prompt and type in the following command to export a PCM .cdb dat
 Inspect Table Data
 
 from src.model import model_api
-    from src.utils import database_helper
-    database_connection = database_helper.get_database_connection(model_api.APP_DATABASE_FILE)
+from src.utils import database_helper
+database_connection = database_helper.get_database_connection(model_api.APP_DATABASE_FILE)
+
     print(database_helper.run_query(database_connection, "select * from stg_start_list_files"))
+    print(database_helper.run_query(database_connection, "select * from stg_start_list_cyclists where race_name like '%giro%'"))
+    print(database_helper.run_query(database_connection, "select * from pcm_stg_teams"))
     print(database_helper.run_query(database_connection, "select * from pcm_stg_teams"))
     print(database_helper.run_query(database_connection, "select * from pcm_stg_races"))
-    print(database_helper.run_query(database_connection, "select * from pcm_stg_cyclists where cyclist_first_name = 'Magnus'"))
+    print(database_helper.run_query(database_connection, "select * from pcm_stg_cyclists where cyclist_last_name like '%cepeda%'"))
+    
 
     from src.model import model_api
     df = model_api.get_start_list_data("worlddb_2024", "tour de france", 2024)

@@ -26,8 +26,9 @@ def generate_start_list(pcm_database_name, race_name, race_year, pcm_version="20
     # check for start list data. validate race_name. fetch html if needed. validate
     if not model_api.does_start_list_exist(race_name, race_year):
         scraper = procyclingstats.ProCyclingStatsStartListScraper(race_year, race_name)
-        scraper.sync_start_list_to_database(refresh=False)
-
+        scraper.insert_start_list_raw(fetch_from_web=False)
+        scraper.insert_start_list_cyclists()
+        
     df = model_api.get_start_list_data(pcm_database_name, race_name, race_year)
 
     # generate start list xml

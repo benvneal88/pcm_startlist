@@ -14,3 +14,4 @@ class StartList():
         pass
 
     def get_pcm_race_name(self):
+        pass

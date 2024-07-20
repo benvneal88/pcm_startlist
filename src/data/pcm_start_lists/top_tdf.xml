@@ -26,6 +26,7 @@
         <cyclist id="2713"/>
         <cyclist id="5970"/>
         <cyclist id="3564"/>
+        <cyclist id="2346"/>
         <cyclist id="3388"/>
         <cyclist id="2853"/>
     </team>
@@ -210,6 +211,7 @@
         <cyclist id="6314"/>
     </team>
     <team id="99">
+        <cyclist id="3011"/>
         <cyclist id="6508"/>
         <cyclist id="3586"/>
         <cyclist id="13452"/>

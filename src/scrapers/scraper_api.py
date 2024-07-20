@@ -32,7 +32,7 @@ def download_file(url: str, save_file_path):
 
     logger.info(f"successfully retrieved data {response.status_code}")
     with open(save_file_path, "w", encoding="utf-8") as _file:
-        _file.write()
+        _file.write(response_text)
 
     logger.info(f"saved data to file {save_file_path}")
 
@@ -41,13 +41,18 @@ def insert_start_list_file_data_to_database(data_source, race_year, race_name, u
     with open(file_path, "rb") as file:
         file_bytes = file.read()
 
+    file_str = file_bytes.decode('utf-8')
+    if file_str is None or file_str == "":
+        logger.error(f"No data in file!")
+        sys.exit(1)
+
     logger.info(f"Inserting into table '{race_year}' - '{race_name}' - '{url}' - '{data_source}'")
     row_dict = {
         "data_source": [data_source],
         "race_year": [race_year],
         "race_name": [race_name],
         "url": [url],
-        "blob_content": [file_bytes.decode('utf-8')],
+        "blob_content": [file_str],
     }
 
     df = pandas.DataFrame.from_dict(row_dict)
@@ -98,9 +103,9 @@ class StartListScraper(ABC):
 
         return raw_text
 
-    def sync_start_list_to_database(self, refresh=False):
+    def insert_start_list_raw(self, fetch_from_web=False):
         raw_file_exists = self.does_start_list_raw_file_exist()
-        if refresh or not raw_file_exists:
+        if fetch_from_web or not raw_file_exists:
             logger.info(f"Fetching latest start list from: '{self.start_list_url}'")
             self.get_start_list_raw(refresh=True)
         elif not self.does_start_list_raw_file_exist():
@@ -118,6 +123,7 @@ class StartListScraper(ABC):
             file_path=self.get_start_list_raw_file_path()
         )
 
+    def insert_start_list_cyclists(self):
         html_string = model_api.get_start_list_raw_html(
             self.data_source_name,
             self.race_year,
@@ -129,7 +135,6 @@ class StartListScraper(ABC):
         except Exception as e:
             logger.exception(e)
             logger.error("Failed to transform the html into a start list dataframe")
-            return False
+            sys.exit(1)
 
         model_api.insert_start_list_riders(df, self.race_name, self.race_year)
-        return True
