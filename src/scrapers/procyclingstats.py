@@ -90,3 +90,5 @@ class ProCyclingStatsStartListScraper(StartListScraper):
         return df
 
 
+    def transform_raw_start_list_races(self, html_string):
+        soup = BeautifulSoup(html_string, "html.parser")

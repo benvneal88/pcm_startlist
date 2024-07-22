@@ -34,3 +34,25 @@ def generate_start_list(pcm_database_name, race_name, race_year, pcm_version="20
     # generate start list xml
     model_api.generate_xml_start_list(df, start_list_xml_file_path)
     logger.info(f"Next step: copy generated file into your PCM game directory: '%AppData%\Roaming\Pro Cycling Manager 2024\Cloud\Startlists\'")
+
+
+def show_start_lists():
+    """Retrieves start lists that have been downloaded
+
+    :return:
+    """
+    pass
+
+def show_pcm_databases():
+    """Retrieves PCM databases that have been added
+
+    :return:
+    """
+    pass
+
+def show_pcm_start_lists():
+    """Retrieves PCM databases that have been added
+
+    :return:
+    """
+    pass

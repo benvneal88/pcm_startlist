@@ -344,3 +344,9 @@ def get_start_list_raw_html(data_source, race_year, race_name):
     database_connection = database_helper.get_database_connection(APP_DATABASE_FILE)
     df = database_helper.run_query(database_connection, f"select blob_content from stg_start_list_files where data_source = '{data_source}' and race_year = {race_year} and race_name = '{escape_text_sql(race_name)}' order by downloaded_at desc")
     return df["blob_content"].iloc[0]
+
+
+def get_race_list_races_raw_html(data_source, race_year):
+    database_connection = database_helper.get_database_connection(APP_DATABASE_FILE)
+    df = database_helper.run_query(database_connection, f"select blob_content from stg_start_list_races_files where data_source = '{data_source}' and race_year = {race_year} order by downloaded_at desc")
+    return df["blob_content"].iloc[0]

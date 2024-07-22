@@ -9,6 +9,20 @@ CREATE TABLE IF NOT EXISTS stg_start_list_files(
     downloaded_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS stg_start_list_races_files(
+    data_source text,
+    race_year integer,
+    url text,
+    blob_content text,
+    downloaded_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS stg_start_list_races(
+    race_year integer,
+    race_name text,
+    start_list_url text
+);
+
 CREATE TABLE IF NOT EXISTS stg_start_list_cyclists(
     race_year integer,
     race_name text,

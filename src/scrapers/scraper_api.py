@@ -90,6 +90,10 @@ class StartListScraper(ABC):
     def transform_raw_start_list(self, html_string) -> List[Dict]:
         pass
 
+    @abstractmethod
+    def transform_raw_start_list_races(self, html_string) -> List[Dict]:
+        pass
+
     def get_start_list_raw(self, refresh: bool = False) -> bytes:
         """"Fetches Start List raw html data"""
         start_list_raw_file_path = self.get_start_list_raw_file_path()
@@ -132,6 +136,21 @@ class StartListScraper(ABC):
 
         try:
             df = self.transform_raw_start_list(html_string)
+        except Exception as e:
+            logger.exception(e)
+            logger.error("Failed to transform the html into a start list dataframe")
+            sys.exit(1)
+
+        model_api.insert_start_list_riders(df, self.race_name, self.race_year)
+
+    def insert_start_list_races(self):
+        html_string = model_api.get_race_list_races_raw_html(
+            self.data_source_name,
+            self.race_year
+        )
+
+        try:
+            df = self.transform_raw_start_list_races(html_string)
         except Exception as e:
             logger.exception(e)
             logger.error("Failed to transform the html into a start list dataframe")
