@@ -55,7 +55,7 @@ def match_dataframes(df1, df2):
     return matched_df
 
 
-def get_start_list_data(pcm_database_name, race_name, race_year):
+def get_start_list_data(pcm_database_name, pcm_race_name, race_name, race_year):
     database_connection = database_helper.get_database_connection(APP_DATABASE_FILE)
     #get_start_list_sql = f"select team_name, cyclist_first_name, cyclist_last_name from stg_start_list_cyclists where race_name = '{escape_text_sql(race_name)}' and race_year = {race_year}"
     get_start_list_sql = f"select team_name, cyclist_first_name || ' ' || cyclist_last_name as cyclist_name from stg_start_list_cyclists where race_name = '{escape_text_sql(race_name)}' and race_year = {race_year}"
@@ -92,6 +92,7 @@ def get_start_list_data(pcm_database_name, race_name, race_year):
 
 
 def fuzzy_match(row, roster_df):
+    CONFIDENCE = 40
     team_name = row['team_name']
     sorted_cyclist_name = row['sorted_cyclist_name']
     cyclist_name = row['cyclist_name']
@@ -111,7 +112,7 @@ def fuzzy_match(row, roster_df):
     # Get the best match for the cyclist name within the filtered team
     cyclist_name_match = process.extractOne(sorted_cyclist_name, possible_matches['sorted_cyclist_name'], scorer=fuzz.token_sort_ratio)
 
-    if cyclist_name_match[1] >= 50:
+    if cyclist_name_match[1] >= CONFIDENCE:
         best_match = possible_matches[(possible_matches['sorted_cyclist_name'] == cyclist_name_match[0])]
         if not best_match.empty:
             return pd.Series([best_match.iloc[0]['team_id'], best_match.iloc[0]['cyclist_id']])

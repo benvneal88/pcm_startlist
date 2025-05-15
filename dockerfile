@@ -16,8 +16,7 @@ RUN apt-get update && \
 
 # Set the working directory
 WORKDIR /src
-
-# Copy requirements file
+ Copy requirements file
 COPY src/requirements.txt .
 
 # Install the Python dependencies
