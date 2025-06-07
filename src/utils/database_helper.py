@@ -1,58 +1,50 @@
-import sys
+
+# Contents of /pcm_startlist/pcm_startlist/src/utils/database_helper.py
+
 import sqlite3
-import pandas
-from src.utils import logger_helper
-from src.utils import database_helper
+from utils import logger_helper
+
 logger = logger_helper.get_logger(__name__)
 
-
-def get_database_connection(database_file):
+def get_database_connection(db_file):
+    """Create a database connection to the SQLite database specified by db_file."""
+    conn = None
     try:
-        conn = sqlite3.connect(
-            database_file,
-            isolation_level=None,
-            detect_types=sqlite3.PARSE_COLNAMES
-        )
-    except Exception as e:
-        print(e)
-        sys.exit(1)
+        logger.info(f"Connecting to PCM database from file: '{db_file}'")
+        conn = sqlite3.connect(db_file)
+        conn.row_factory = sqlite3.Row  # Enable row access by name
+    except sqlite3.Error as e:
+        print(f"Error connecting to database: {e}")
     return conn
 
-
-def list_tables(database_connection):
-    conn = database_connection
-    sql_query = """SELECT name FROM sqlite_master  
-      WHERE type='table';"""
+def run_query(conn, query, params=()):
+    """Execute a query and return the results."""
     cursor = conn.cursor()
-    cursor.execute(sql_query)
-    tables = cursor.fetchall()
-    return tables
+    try:
+        cursor.execute(query, params)
+        return cursor.fetchall()
+    except sqlite3.Error as e:
+        print(f"Error executing query: {e}")
+        return None
 
+def list_tables(conn):
+    """List all tables in the connected database."""
+    query = "SELECT name FROM sqlite_master WHERE type='table';"
+    return run_query(conn, query)
 
-def get_metadata(database_connection, table_name):
+def close_connection(conn):
+    """Close the database connection."""
+    if conn:
+        conn.close()
+
+def get_metadata(conn, table_name):
     pragma_sql = f'PRAGMA table_info({table_name})'
-    cursor = database_connection.cursor()
+    cursor = conn.cursor()
     cursor.execute(pragma_sql)
     columns_info = cursor.fetchall()
     return columns_info
 
-def get_columns(database_connection, table_name):
-    columns_info = get_metadata(database_connection, table_name)
+def get_columns(conn, table_name):
+    columns_info = get_metadata(conn, table_name)
     columns = [_tuple[1] for _tuple in columns_info]
     return columns
-
-
-def run_query(database_connection, sql_query):
-    conn = database_connection
-    df = pandas.read_sql(sql_query, conn)
-    return df
-
-
-def drop_tables(database_connection, tables):
-    for drop_table in tables:
-        logger.info(f"Dropping table {drop_table}")
-        try:
-            database_connection.execute(f"drop table if exists {drop_table}")
-            database_connection.commit()
-        except Exception as e:
-            print(e)

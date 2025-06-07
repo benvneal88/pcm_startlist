@@ -9,8 +9,8 @@ from abc import ABC, abstractmethod
 import sqlite3
 from typing import List, Dict
 
-from src.model import model_api
-from src.utils import logger_helper
+from src_old.model import model_api
+from src_old.utils import logger_helper
 logger = logger_helper.get_logger(__name__)
 
 

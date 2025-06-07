@@ -1,98 +1,142 @@
-
-
-
 # Start List Generator for Pro Cycling Manager
 
-This program generates race start lists for use in single player races by 
-pulling real start list data from the internet and generating the PCM start list files for the database of your choosing.
+This project is a Python application designed to generate race start lists for the Pro Cycling Manager video game. It pulls real start list data from the internet and integrates it with the race and rider data from the PCM database (SQLite), creating XML files that the game can utilize.
 
-1. Scrapes the web for the requested race start list
-2. Extracts the cyclists, teams and races from the PCM database
-3. Matches start list to the PCM database and generate a PCM start list XML
+## Features
+
+1. **Web Scraping**: The application scrapes the web for requested race start lists.
+2. **Database Interaction**: It extracts cyclists, teams, and races from the PCM database.
+3. **XML Generation**: The program matches the start list to the PCM database and generates PCM-compatible start list XML files.
+
+## Project Structure
+
+```
+pcm_startlist/
+├── src/
+│   ├── cli.py          # Command-line interface for the application
+│   ├── main.py         # Entry point for the application
+│   ├── config.py       # Configuration settings
+│   ├── data/           # Directory for data-related modules
+│   ├── scrapers/       # Directory for web scraping modules
+│   ├── pcm/            # Directory for PCM database interaction
+│   ├── model/          # Directory for data model management
+│   ├── utils/          # Directory for utility functions
+│   └── xml/            # Directory for XML generation
+├── tests/              # Directory for unit tests
+├── requirements.txt    # Project dependencies
+├── setup.py            # Setup script for the package
+└── README.md           # Project documentation
+```
 
 ## Prerequisites
 
-1. Clone of this repository
-2. A PCM Database exported as SQLite to the folder `src/data/pcm_dbs/<database_name>.sqlite`
+1. Clone this repository.
+2. Ensure you have Python installed on your machine.
+3. Install the required dependencies listed in `requirements.txt`.
+
+## Usage
+
+This will eventually be pushed to a web app with some basic controls:
+- Load a new PCM database
+- View existing start lists
+- Generate new start lists
 
 
-### Export a PCM Database (.cdb) to a SQLite Database
+To generate a start list, you can use the command-line interface. Here are some example commands:
 
-Download SQLiteExporter.exe
-Launch command prompt navigate to the folder where SQLiteExporter.exe is located and export the cdb
+CLI Usage
 
-    SQLiteExporter.exe -export "Pro Cycling Manager 2024\Cloud\<pcm user name>\Career_1.cdb"
-    SQLiteExporter.exe -export "Pro Cycling Manager 2024\Cloud\76561198067930365\Race_5.cdb"
+### Generate a Start List
 
-This will generate a .sqlite file in the same PCM folder. Copy or move to the folder `src/data/pcm_dbs` and rename the file to match the `pcm_database_name`
+```sh
+python src/cli.py generate_start_list --pcm_database_name <DB_NAME> --race_name <RACE_NAME> --race_year <YEAR> [--pcm_race_name <PCM_RACE_NAME>]
+```
 
-Pro Cycling Manager 2024\Cloud\76561198067930365
+### Load a PCM Database
 
-## CLI for start list creation
-    python ./run.py --pcm_database_name "worlddb_2024" --race_name "Tour de France" --race_year 2024
-    python ./run.py --pcm_database_name "worlddb_2024" --race_name "Giro d'Italia" --race_year 2024
-    python ./run.py --pcm_database_name "worlddb_2025" --pcm_race_name "Giro d'Italia" --race_name "Giro d'Italia" --race_year 2025
-    python ./run.py --pcm_database_name "worlddb_2024" --race_name "vuelta a espana" --pcm_race_name "la vuelta ciclista a españa" --race_year 2024
+```sh
+python src/cli.py load_pcm_database --pcm_database_name <DB_NAME> [--pcm_version <VERSION>]
+```
 
+### Show Loaded PCM Databases
 
-### Troubleshooting
+```sh
+python3 src/cli.py show_pcm_databases [--pcm_version <VERSION>]
+```
 
-#### Fetch Start List
-    from scrapers import procyclingstats 
-    race_year = 2025
-    race_name = "tour-de-france"
-    scraper = procyclingstats.ProCyclingStatsStartListScraper(race_year, race_name)
-    scraper.insert_start_list_raw(fetch_from_web=False)
+how Generated Start Lists
 
+```sh
+python src/cli.py show_start_lists [--pcm_version <VERSION>] [--pcm_database_name <DB_NAME>]
+```
 
-#### Extract Data from PCM Database
+## How it Works
 
-    from src.pcm import pcm_api, extract
-    from src.utils import database_helper
-    database_name = "worlddb_2024"
-    
-    pcm_api.load_model(database_name)
-    
-    extract.get_object(database_name, "team")
-    extract.get_object(database_name, "race")
-    extract.get_object(database_name, "cyclist")
-    extract.get_roster(conn)
+In order to generate a start list, three tables from the PCM database are needed:
 
-Inspect Table Data
-
-from src.model import model_api
-from src.utils import database_helper
-database_connection = database_helper.get_database_connection(model_api.APP_DATABASE_FILE)
-
-    print(database_helper.run_query(database_connection, "select * from stg_start_list_files"))
-    print(database_helper.run_query(database_connection, "select * from stg_start_list_cyclists where race_name like '%giro%'"))
-    print(database_helper.run_query(database_connection, "select * from pcm_stg_teams"))
-    print(database_helper.run_query(database_connection, "select * from pcm_stg_teams"))
-    print(database_helper.run_query(database_connection, "select * from pcm_stg_races"))
-    print(database_helper.run_query(database_connection, "select * from pcm_stg_cyclists where cyclist_last_name like '%cepeda%'"))
-    print(database_helper.run_query(database_connection, "select team_name, cyclist_first_name || ' ' || cyclist_last_name as cyclist_name from stg_start_list_cyclists where race_name = 'la vuelta ciclista a españa' and race_year = 2024"))
-
-    from src.model import model_api
-    df = model_api.get_start_list_data("worlddb_2024", "tour de france", 2024)
-    print(df[df['team_name'].str.contains('uno')])
-
-Delete Tables
-
-    from src.model import model_api
-    model_api.delete_model_tables(['pcm_stg_cyclists','pcm_stg_teams','pcm_stg_races', 'stg_start_list_cyclists'])
-    model_api.delete_model_tables(['stg_start_list_cyclists', 'stg_start_list_files'])
+- Cyclist - in order to match the start list rider names to PCM riders
+- Team - in order to match the start list teams to PCM teams
+- Race - in order to generate the correct start list file name (e.g. `top_giro.xml`)
 
 
-Create Tables
+## Exporting PCM Database
 
-    from src.model import model_api
-    model_api.create_model()
-    
-    from src.utils import database_helper
-    conn = database_helper.get_database_connection(model_api.APP_DATABASE_FILE)
-    database_helper.list_tables(conn)
+To use the application, you need to export your PCM database as an SQLite file. Follow these steps:
 
-### Docker
+1. Download `SQLiteExporter.exe`.
+2. Open a command prompt and navigate to the folder containing `SQLiteExporter.exe`.
+3. Run the following command to export your `.cdb` file:
 
-    docker build -t pcm_startlist .
-    docker run -it --rm -v pcm_startlist
+```bash
+SQLiteExporter.exe -export "Pro Cycling Manager 2024\Cloud\<your_username>\Career_1.cdb"
+```
+
+4. Move the generated `.sqlite` file to the `src/data/pcm_dbs` directory and rename it to match the `pcm_database_name`.
+
+## Running with Docker
+
+1. **Build the Docker image:**
+   ```sh
+   docker build -t pcm-startlist .
+   ```
+
+2. **Run the application:**
+   ```sh
+   docker run --rm -it pcm-startlist src/cli.py [command] [options]
+   ```
+
+3. **Development mode with volume mounting:**
+   When developing, you can mount your local `src/` directory to avoid rebuilding the image after code changes:
+   ```sh
+   docker run --rm -it -v "$(pwd)/src:/app/src" pcm-startlist src/cli.py [command] [options]
+   ```
+
+### Docker Command Examples
+
+python3 src/cli.py show_start_lists
+
+# Show PCM databases
+python3 src/cli.py show_pcm_databases
+
+# Load a PCM database
+python3 src/cli.py import_pcm_database --pcm_database_name "worlddb_2024"
+
+# Generate a start list
+python3 src/cli.py generate_start_list --pcm_database_name "my_database" --race_name "Tour de France" --race_year 2024
+```
+
+## Troubleshooting
+
+If you encounter issues, check the following:
+
+- Ensure the SQLite database is correctly exported and located in the specified directory.
+- Verify that the required dependencies are installed.
+- Review the logs for any error messages that can guide you in resolving the issue.
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a pull request or open an issue for any suggestions or improvements.
+
+## License
+
+This project is licensed under the MIT License. See the LICENSE file for more details.
