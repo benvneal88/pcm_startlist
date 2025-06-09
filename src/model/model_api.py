@@ -1,6 +1,8 @@
 import os
 import pandas as pd
 from enum import Enum
+
+from scrapers import procyclingstats
 from utils import database_helper
 from pcm import pcm_api
 from utils import logger_helper
@@ -10,6 +12,11 @@ logger = logger_helper.get_logger(__name__)
 
 APP_DATABASE_FILE = os.path.join("src", "data", "dbs", "app", "v01.sqlite")
 APP_DATABASE_NAME = "pcm-startlist-generator"
+SCRAPER_DATA_SOURCE = "procyclingstats"
+
+def escape_text_sql(text):
+    return text.replace("'", " ")
+
 
 class TableName(Enum):
     PCM_DATABASE = "tbl_pcm_databases"
@@ -19,11 +26,13 @@ class TableName(Enum):
     START_LIST_CYCLISTS = "tbl_start_list_cyclists"
     START_LIST_FILES = "tbl_start_list_files"
 
+
 class AppDatabase:
     """Interface to the application database."""
     def __init__(self, db_file=APP_DATABASE_FILE):
         self.db_file = db_file
         self.connection = None
+        self.scraper = None
         # Ensure directory exists
         os.makedirs(os.path.dirname(self.db_file), exist_ok=True)
         self.connect()
@@ -37,6 +46,10 @@ class AppDatabase:
         if self.connection:
             self.connection.close()
             self.connection = None
+
+    def init_scraper(self, race_year, race_name):
+        if self.scraper is None:
+            self.scraper = procyclingstats.ProCyclingStatsStartListScraper(race_year, race_name)
 
     def init_tables(self):
         # Create app database if it doesn't exist
@@ -91,6 +104,18 @@ class AppDatabase:
 
         # Start list tables
         cursor.execute(f'''
+            CREATE TABLE IF NOT EXISTS {TableName.START_LIST_FILES.value}(
+                id integer PRIMARY KEY,
+                data_source text,
+                race_year integer,
+                race_name text,
+                url text,
+                blob_content text,
+                downloaded_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
+        cursor.execute(f'''
             CREATE TABLE IF NOT EXISTS {TableName.START_LIST_CYCLISTS.value} (
                 race_year integer,
                 race_name text,
@@ -101,19 +126,7 @@ class AppDatabase:
             )
         ''')
 
-        cursor.execute(f'''
-            CREATE TABLE IF NOT EXISTS {TableName.START_LIST_FILES.value}(
-                data_source text,
-                race_year integer,
-                race_name text,
-                url text,
-                blob_content text,
-                downloaded_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-
         # App Final Tables
-
         cursor.execute(f'''
             CREATE TABLE IF NOT EXISTS tbl_teams(
                 id integer PRIMARY KEY,
@@ -189,14 +202,10 @@ class AppDatabase:
         self.connection.commit()
 
     def drop_tables(self, tables):
-        conn = self.connect()
-        cursor = conn.cursor()
+        cursor = self.connection.cursor()
         for table in tables:
             cursor.execute(f'DROP TABLE IF EXISTS {table}')
-        conn.commit()
-
-    def escape_text_sql(self, text):
-        return text.replace("'", " ")
+        self.connection.commit()
 
     def import_pcm_data(self, pcm_version, pcm_database_name):
         """Fetches and stages the data from the PCM database.
@@ -216,7 +225,7 @@ class AppDatabase:
             index=False
         )
 
-        sql_statement = f"SELECT id as database_id FROM {db_table_name} WHERE pcm_database_name = '{self.escape_text_sql(pcm_database_name)}' AND pcm_version = '{self.escape_text_sql(pcm_version)}' order by created_at desc"
+        sql_statement = f"SELECT id as database_id FROM {db_table_name} WHERE pcm_database_name = '{escape_text_sql(pcm_database_name)}' AND pcm_version = '{escape_text_sql(pcm_version)}' order by created_at desc"
         df = pd.read_sql_query(sql_statement, self.connection)
         database_id = df['database_id'].iloc[0] if not df.empty else None
         if database_id is None:
@@ -247,45 +256,18 @@ class AppDatabase:
         query = f"""
             SELECT team_name, cyclist_first_name || ' ' || cyclist_last_name AS cyclist_name
             FROM stg_start_list_cyclists
-            WHERE race_name = '{self.escape_text_sql(race_name)}' AND race_year = {race_year}
+            WHERE race_name = '{escape_text_sql(race_name)}' AND race_year = {race_year}
         """
         logger.info(query)
         return database_helper.run_query(conn, query)
 
-    def insert_start_list_files(self, df):
-        conn = self.connect()
-        df.to_sql(
-            name="stg_start_list_files",
-            con=conn,
-            if_exists="append",
-            index=False
-        )
-        logger.info("Added Start List raw data")
-        print(database_helper.run_query(conn, "SELECT * FROM stg_start_list_files"))
-
-    def insert_start_list_riders(self, df, race_name, race_year):
-        logger.info(f"Deleting and inserting {len(df)} rows into stg_start_list_cyclists")
-        conn = self.connect()
-        delete_sql = f"DELETE FROM stg_start_list_cyclists WHERE race_year = {race_year} AND race_name = '{self.escape_text_sql(race_name)}'"
-        logger.debug(f"Deleting existing data: '{delete_sql}'")
-        cursor = conn.cursor()
-        cursor.execute(delete_sql)
-        conn.commit()
-        df.to_sql(
-            name="stg_start_list_cyclists",
-            con=conn,
-            if_exists="append",
-            index=False
-        )
-
     def does_start_list_exist(self, race_name, race_year):
         logger.info(f"Checking for Start Lists...")
-        conn = self.connect()
-        df = database_helper.run_query(conn, f"SELECT downloaded_at FROM stg_start_list_files WHERE race_name = '{self.escape_text_sql(race_name)}' AND race_year = {race_year} ORDER BY downloaded_at DESC")
+        df = database_helper.run_query(self.connection, f"SELECT downloaded_at FROM stg_start_list_files WHERE race_name = '{escape_text_sql(race_name)}' AND race_year = {race_year} ORDER BY downloaded_at DESC")
         if len(df) > 0:
             last_downloaded_at = df['downloaded_at'].iloc[0]
             logger.info(f"✅ Start List for '{race_year} - {race_name}' is downloaded as of '{last_downloaded_at}'")
-            df2 = database_helper.run_query(conn, f"SELECT * FROM stg_start_list_cyclists WHERE race_name = '{self.escape_text_sql(race_name)}' AND race_year = {race_year}")
+            df2 = database_helper.run_query(conn, f"SELECT * FROM stg_start_list_cyclists WHERE race_name = '{escape_text_sql(race_name)}' AND race_year = {race_year}")
             start_list_cyclists_count = len(df2)
             if start_list_cyclists_count > 100:
                 logger.info(f"✅ {start_list_cyclists_count} Start List cyclists exist in database")
@@ -297,19 +279,52 @@ class AppDatabase:
             logger.info(f"❌ Start List for '{race_year} - {race_name}' has not been downloaded yet")
         return False
 
-    def get_start_list_raw_html(self, data_source, race_year, race_name):
-        conn = self.connect()
-        df = database_helper.run_query(conn, f"SELECT blob_content FROM stg_start_list_files WHERE data_source = '{data_source}' AND race_year = {race_year} AND race_name = '{self.escape_text_sql(race_name)}' ORDER BY downloaded_at DESC")
-        return df["blob_content"].iloc[0] if not df.empty else None
+    def download_and_insert_start_list(self, race_year, race_name, fetch_from_web=False):
+        """Downloads the start list from the web and inserts it into the database."""
+        self.init_scraper(race_year, race_name)
+        start_list_url, start_list_file_path_html = self.scraper.fetch_start_list(fetch_from_web=fetch_from_web)
+            
+        with open(start_list_file_path_html, "rb") as file:
+            html_string = file.read().decode('utf-8')
 
-    def get_race_list_races_raw_html(self, data_source, race_year):
-        conn = self.connect()
-        df = database_helper.run_query(conn, f"SELECT blob_content FROM stg_start_list_races_files WHERE data_source = '{data_source}' AND race_year = {race_year} ORDER BY downloaded_at DESC")
-        return df["blob_content"].iloc[0] if not df.empty else None
+        if html_string is None or html_string == "":
+            logger.error(f"No start list raw data in file!")
+            sys.exit(1)
+
+        logger.info(f"Inserting Start List raw data into table '{race_year}' - '{race_name}' - '{start_list_url}' - '{SCRAPER_DATA_SOURCE}'")
+        row_dict = {
+            "data_source": [SCRAPER_DATA_SOURCE],
+            "race_year": [race_year],
+            "race_name": [race_name],
+            "url": [start_list_url],
+            "blob_content": [html_string],
+        }
+
+        df = pd.DataFrame.from_dict(row_dict)
+        df.to_sql(
+            name=TableName.START_LIST_FILES.value,
+            con=self.connection,
+            if_exists="append",
+            index=False
+        )
+        logger.info("Added Start List html data into table '{TableName.START_LIST_FILES.value}}'")
+
+        df = self.scraper.transform_raw_start_list(html_string)
+
+        logger.info(f"Deleting and inserting {len(df)} rows into table '{TableName.START_LIST_CYCLISTS.value}'")
+        delete_sql = f"DELETE FROM {TableName.START_LIST_CYCLISTS.value} WHERE race_year = {race_year} AND race_name = '{escape_text_sql(race_name)}'"
+
+        self.connection.execute(delete_sql)
+        self.connection.commit()
+        df.to_sql(
+            name=TableName.START_LIST_CYCLISTS.value,
+            con=self.connection,
+            if_exists="append",
+            index=False
+        )
 
     def check_for_start_list(self, pcm_version, pcm_database_name, race_name, race_year):
-        conn = self.connect()
-        df = database_helper.run_query(self.connection, f"SELECT * FROM start_list_view WHERE pcm_version = {pcm_version} AND pcm_database_name = '{self.escape_text_sql(pcm_database_name)}' AND race_name = '{race_name}' AND race_year = {race_year}") 
+        df = database_helper.run_query(self.connection, f"SELECT * FROM start_list_view WHERE pcm_version = {pcm_version} AND pcm_database_name = '{escape_text_sql(pcm_database_name)}' AND race_name = '{race_name}' AND race_year = {race_year}") 
         if len(df) == 0:
             logger.info(f"❌ Start list does not exist yet")
             return False
@@ -334,13 +349,13 @@ class AppDatabase:
                 filter += " AND"
             else:
                 filter += " WHERE"
-            filter += f" pcm_database_name = '{self.escape_text_sql(pcm_database_name)}'"
+            filter += f" pcm_database_name = '{escape_text_sql(pcm_database_name)}'"
         df = database_helper.run_query(self.connection, f"SELECT database_id, pcm_version, pcm_database_name, race_name, race_year, count(*) FROM start_list_view {filter} GROUP BY 1,2,3,4,5 ORDER BY pcm_database_name DESC, race_year DESC")
         return df
 
     def does_pcm_database_exist(self, pcm_version, pcm_database_name):
         conn = self.connect()
-        df = database_helper.run_query(conn, f"SELECT * FROM {TableName.PCM_DATABASE.value} WHERE pcm_database_name = '{self.escape_text_sql(pcm_database_name)}' AND pcm_version = {pcm_version}")
+        df = database_helper.run_query(conn, f"SELECT * FROM {TableName.PCM_DATABASE.value} WHERE pcm_database_name = '{escape_text_sql(pcm_database_name)}' AND pcm_version = {pcm_version}")
         if len(df) == 0:
             logger.info(f"❌ PCM database '{pcm_database_name}' not found in app database")
             return False

@@ -32,7 +32,6 @@ def main():
 
     if args.command == "generate_start_list":
         api.generate_start_list(
-            app=api.get_app(),
             pcm_database_name=args.pcm_database_name,
             race_name=args.race_name,
             race_year=args.race_year,

@@ -1,7 +1,8 @@
 import sys
 
+
 from model import model_api
-from scrapers import procyclingstats
+from scrapers import scraper_api
 from utils import logger_helper
 logger = logger_helper.get_logger(__name__)
 
@@ -13,7 +14,6 @@ def get_app():
 
 
 def generate_start_list(
-        app, 
         pcm_database_name, 
         pcm_race_name, 
         race_name, 
@@ -23,34 +23,32 @@ def generate_start_list(
     ):
     """Generates the start list XML
     
-    :param app: The app instance
     :param pcm_database_name: The name of the PCM database
     :param pcm_race_name: The name of the PCM race
     :param pcm_version: The version of PCM video game
     :param race_name: The name of the race name from the start list source
     :param race_year: The year/edition of the race for fetching the start list
     """ 
-    # if the start list already exists, return the start list unless the user wants to force a refresh of the start list or pcm data
-    if not force_start_list_refresh and not force_pcm_db_refresh:
-        if app.check_for_start_list(pcm_version, pcm_database_name, race_name, race_year):
-            df = app.get_start_list_data(pcm_version, pcm_database_name, pcm_race_name, race_name, race_year)
-            model_api.generate_xml_start_list(df, start_list_xml_file_path)
 
-    if app.check_for_start_list(pcm_version, pcm_database_name, race_name, race_year):
-        scraper = procyclingstats.ProCyclingStatsStartListScraper(race_year, race_name)
-        scraper.insert_start_list_raw(fetch_from_web=False)
-        scraper.insert_start_list_cyclists()
-        
+    app = get_app()
+    
 
-    start_list_xml_file_path = model_api.get_xml_file_path(file_name)
+    start_list_exists = app.check_for_start_list(pcm_version, pcm_database_name, race_name, race_year)
+    
+    # if the start list already exists, return the start list unless the user wants to force a refresh of the start list
+    if force_start_list_refresh or not start_list_exists:
+        app.download_and_insert_start_list(race_year, race_name)
 
-    # check for start list data. validate race_name. fetch html if needed. validate
+
+    #start_list_xml_file_path = model_api.get_xml_file_path(file_name)
+    # model_api.generate_xml_start_list(df, start_list_xml_file_path)
+    # # check for start list data. validate race_name. fetch html if needed. validate
 
     
 
-    # generate start list xml
-    model_api.generate_xml_start_list(df, start_list_xml_file_path)
-    logger.info(f"Next step: copy generated file into your PCM game directory: '%AppData%\Roaming\Pro Cycling Manager 2024\Cloud\Startlists\'")
+    # # generate start list xml
+    # model_api.generate_xml_start_list(df, start_list_xml_file_path)
+    # logger.info(f"Next step: copy generated file into your PCM game directory: '%AppData%\Roaming\Pro Cycling Manager 2024\Cloud\Startlists\'")
 
 
 def import_pcm_database(pcm_version, pcm_database_name):

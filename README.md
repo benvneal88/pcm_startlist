@@ -122,7 +122,7 @@ python3 src/cli.py show_pcm_databases
 python3 src/cli.py import_pcm_database --pcm_database_name "worlddb_2024"
 
 # Generate a start list
-python3 src/cli.py generate_start_list --pcm_database_name "my_database" --race_name "Tour de France" --race_year 2024
+python3 src/cli.py generate_start_list --pcm_database_name "worlddb_2024" --race_name "Tour de France" --race_year 2024
 ```
 
 ## Troubleshooting
