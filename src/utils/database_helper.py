@@ -1,6 +1,4 @@
-
-# Contents of /pcm_startlist/pcm_startlist/src/utils/database_helper.py
-
+import sys
 import sqlite3
 from utils import logger_helper
 
@@ -10,11 +8,12 @@ def get_database_connection(db_file):
     """Create a database connection to the SQLite database specified by db_file."""
     conn = None
     try:
-        logger.info(f"Connecting to PCM database from file: '{db_file}'")
+        logger.info(f"Connecting to database file: '{db_file}'")
         conn = sqlite3.connect(db_file)
         conn.row_factory = sqlite3.Row  # Enable row access by name
     except sqlite3.Error as e:
-        print(f"Error connecting to database: {e}")
+        logger.error(f"Error connecting to database: '{e}'")
+        sys.exit(1)
     return conn
 
 def run_query(conn, query, params=()):
@@ -24,7 +23,7 @@ def run_query(conn, query, params=()):
         cursor.execute(query, params)
         return cursor.fetchall()
     except sqlite3.Error as e:
-        print(f"Error executing query: {e}")
+        logger.error(f"Error executing query: {e}")
         return None
 
 def list_tables(conn):

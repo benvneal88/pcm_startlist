@@ -1,56 +1,58 @@
-from enum import Enum
+
+
 import os
 import sys
 import pandas
 
+import xml.etree.ElementTree as ET
+from xml.dom import minidom
+
 from utils import database_helper
 from utils import logger_helper
 import config
+from utils import commons
 logger = logger_helper.get_logger(__name__)
 
-PCM_DATABASE_PATH = os.path.join("src", "data", "dbs", "pcm")
 
-class PCMTableName(Enum):
-    TEAM = "DYN_team"
-    RACE = "STA_race"
-    CYCLIST = "DYN_cyclist"
+def generate_xml_start_list(df, pcm_version, pcm_database_name, race_year, out_file):
+    # Create the root element
+    startlist = ET.Element('startlist')
 
+    # Group the DataFrame by team ID
+    grouped = df.groupby('pcm_team_id')
 
-class PCMVersion(Enum):
-    V2025 = "2025"
-    V2024 = "2024"
-    V2023 = "2023"
+    # Iterate through each group
+    for team_id, group in grouped:
+        # Create a team element with the team ID
+        team = ET.SubElement(startlist, 'team', id=str(team_id).replace('.0', ''))
 
+        # Add cyclist elements for each cyclist in the team
+        for cyclist_id in group['pcm_cyclist_id']:
+            ET.SubElement(team, 'cyclist', id=str(cyclist_id).replace('.0', ''))
 
-PCM_DATABASE_FIELD_MAPPINGS = {
-    "2025":
-        {
-            "DYN_team": {"IDteam": "team_id", "gene_sz_shortname": "team_short_name", "gene_sz_name": "team_name"},
-            "STA_race": {"IDrace": "race_id", "gene_sz_race_name": "race_name", "gene_sz_abbreviation": "race_abbrreviation", "gene_sz_filename": "file_name"},
-            "DYN_cyclist": {"IDcyclist": "cyclist_id", "fkIDteam": "team_id", "gene_sz_lastname": "cyclist_last_name", "gene_sz_firstname": "cyclist_first_name"},
-        },
-    "2024":
-        {
-            "DYN_team": {"IDteam": "team_id", "gene_sz_shortname": "team_short_name", "gene_sz_name": "team_name"},
-            "STA_race": {"IDrace": "race_id", "gene_sz_race_name": "race_name", "gene_sz_abbreviation": "race_abbrreviation", "gene_sz_filename": "file_name"},
-            "DYN_cyclist": {"IDcyclist": "cyclist_id", "fkIDteam": "team_id", "gene_sz_lastname": "cyclist_last_name", "gene_sz_firstname": "cyclist_first_name"},
-        },
-    "2023":
-        {
-            "DYN_team": {"IDteam": "team_id", "gene_sz_shortname": "team_short_name", "gene_sz_name": "team_name"},
-            "STA_race": {"IDrace": "race_id", "gene_sz_race_name": "race_name", "gene_sz_abbreviation": "race_abbrreviation", "gene_sz_filename": "file_name"},
-            "DYN_cyclist": {"IDcyclist": "cyclist_id", "fkIDteam": "team_id", "gene_sz_lastname": "cyclist_last_name", "gene_sz_firstname": "cyclist_first_name"},
-        }
-}
+    # Convert the ElementTree to a string
+    xml_str = ET.tostring(startlist, encoding='unicode')
+
+    # Parse the string using minidom for pretty-printing
+    xml_dom = minidom.parseString(xml_str)
+    pretty_xml_str = xml_dom.toprettyxml(indent='    ')
+
+    out_path = os.path.join(commons.START_LIST_OUTPUT_PATH, pcm_version, pcm_database_name, str(race_year), out_file) 
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    with open(out_path, "w") as f:
+        f.write(pretty_xml_str)
+
+    logger.info(f"🎉 Created XML Start List at {out_path}")
+
 
 
 class PCMDatabase:
-    def __init__(self, database_name, pcm_version=PCMVersion.V2024.value):
+    def __init__(self, database_name, pcm_version):
         """Extracts the required data from the PCM database."""
-        assert pcm_version in [i.value for i in PCMVersion]
+        assert pcm_version in commons.PCM_VERSIONS
         self.pcm_version = pcm_version
         self.database_name = database_name
-        self.database_file_path = os.path.join(os.getcwd(), PCM_DATABASE_PATH, f"{self.database_name}.sqlite")
+        self.database_file_path = os.path.join(os.getcwd(), commons.PCM_DATABASE_PATH, f"{self.database_name}.sqlite")
         if self.database_file_exists():
             self.connection = database_helper.get_database_connection(self.database_file_path)
         else:
@@ -72,7 +74,7 @@ class PCMDatabase:
     def get_pcm_object(self, table_name):
         """Fetches the data from the PCM database."""
         
-        database_field_mappings = PCM_DATABASE_FIELD_MAPPINGS.get(self.pcm_version)
+        database_field_mappings = commons.PCM_DATABASE_MAPPINGS.get(self.pcm_version)
         
         table_field_mappings = database_field_mappings.get(table_name)
         if table_field_mappings is None:

@@ -64,10 +64,16 @@ python src/cli.py load_pcm_database --pcm_database_name <DB_NAME> [--pcm_version
 python3 src/cli.py show_pcm_databases [--pcm_version <VERSION>]
 ```
 
-how Generated Start Lists
+### Show Generated Start Lists
 
 ```sh
 python src/cli.py show_start_lists [--pcm_version <VERSION>] [--pcm_database_name <DB_NAME>]
+```
+
+### Show PCM Races
+
+```sh
+python src/cli.py show_pcm_races --database_id <ID> --race_name <RACE_NAME>
 ```
 
 ## How it Works
@@ -112,17 +118,21 @@ SQLiteExporter.exe -export "Pro Cycling Manager 2024\Cloud\<your_username>\Caree
    ```
 
 ### Docker Command Examples
-
 python3 src/cli.py show_start_lists
+
+# Load a PCM database
+python3 src/cli.py import_pcm_database --pcm_database_name "WORLDDB_2024" --pcm_version "PCM_2025"
 
 # Show PCM databases
 python3 src/cli.py show_pcm_databases
 
-# Load a PCM database
-python3 src/cli.py import_pcm_database --pcm_database_name "worlddb_2024"
+# Show PCM races
+python src/cli.py show_pcm_races --pcm_database_id 1 --race_name "Tour de France"
 
 # Generate a start list
-python3 src/cli.py generate_start_list --pcm_database_name "worlddb_2024" --race_name "Tour de France" --race_year 2024
+python3 src/cli.py generate_start_list --pcm_database_id 1 --pcm_race_id 25 --race_year 2024
+
+
 ```
 
 ## Troubleshooting

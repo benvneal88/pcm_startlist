@@ -1,6 +1,6 @@
 import sys
 
-
+from pcm import pcm_api
 from model import model_api
 from scrapers import scraper_api
 from utils import logger_helper
@@ -14,41 +14,49 @@ def get_app():
 
 
 def generate_start_list(
-        pcm_database_name, 
-        pcm_race_name, 
-        race_name, 
-        race_year, 
-        pcm_version="2024", 
+        pcm_database_id,
+        pcm_race_id,
+        race_year,
+        start_list_race_name=None,
+        start_list_url=None,
         force_start_list_refresh=False
     ):
     """Generates the start list XML
     
-    :param pcm_database_name: The name of the PCM database
-    :param pcm_race_name: The name of the PCM race
-    :param pcm_version: The version of PCM video game
-    :param race_name: The name of the race name from the start list source
+    :param pcm_database_id: The ID of the imported PCM database to use
+    :param pcm_race_id: The ID of the PCM race to generate the start list for
     :param race_year: The year/edition of the race for fetching the start list
+    :param start_list_race_name: Force the start list lookup for a specific name (optional)
+    :param start_list_url: Force the start list lookup for a specific url. (optional)
+    :force_start_list_refresh: If True, forces fetching the start list from the internet even if it already exists
     """ 
 
     app = get_app()
-    
 
-    start_list_exists = app.check_for_start_list(pcm_version, pcm_database_name, race_name, race_year)
+    pcm_start_list_file_name, race_name = app.get_pcm_race_details(pcm_database_id, pcm_race_id)
+    start_list_race_name = start_list_race_name if start_list_race_name else race_name
+
+    df = app.get_start_list_data(pcm_database_id, pcm_race_id, race_year)
     
+    start_list_exists = False
+    if df.size > 0:
+        start_list_exists = True
+
     # if the start list already exists, return the start list unless the user wants to force a refresh of the start list
     if force_start_list_refresh or not start_list_exists:
-        app.download_and_insert_start_list(race_year, race_name)
+        start_list_file_id = app.download_and_stage_start_list(race_year, start_list_race_name, start_list_url)
+        final_df = app.match_start_list_and_pcm(pcm_database_id, start_list_file_id)
+        app.insert_start_list_race_data(final_df, pcm_database_id, pcm_race_id, race_name, race_year)
+        df = app.get_start_list_data(pcm_database_id, pcm_race_id, race_year)
+    else:
+        logger.info(f"Found existing start list for '{start_list_race_name}' and year ({race_year})")
 
-
-    #start_list_xml_file_path = model_api.get_xml_file_path(file_name)
-    # model_api.generate_xml_start_list(df, start_list_xml_file_path)
-    # # check for start list data. validate race_name. fetch html if needed. validate
-
+    pcm_database_name, pcm_version = app.get_pcm_database_details(pcm_database_id)
+    app.close()
     
-
-    # # generate start list xml
-    # model_api.generate_xml_start_list(df, start_list_xml_file_path)
-    # logger.info(f"Next step: copy generated file into your PCM game directory: '%AppData%\Roaming\Pro Cycling Manager 2024\Cloud\Startlists\'")
+    pcm_api.generate_xml_start_list(df, pcm_version, pcm_database_name, race_year, pcm_start_list_file_name)
+    
+    logger.info(f"Next step: copy generated file into your PCM game directory: '%AppData%\Roaming\Pro Cycling Manager {pcm_version}\Cloud\Startlists\'")
 
 
 def import_pcm_database(pcm_version, pcm_database_name):
@@ -68,8 +76,16 @@ def show_pcm_databases(pcm_version=None):
     :return:
     """
     app = get_app()
-    for row in app.get_pcm_databases(pcm_version):
-        print(f"database_id: {row['id']}, PCM Version: {row['pcm_version']}, Database Name: {row['pcm_database_name']}")
+    logger.info(f"\n{app.get_pcm_databases(pcm_version)}")
+    app.close()
+
+
+def show_pcm_races(pcm_database_id, race_name=None):
+    """Retrieves PCM races
+    :return:
+    """
+    app = get_app()
+    logger.info(f"\n{app.get_pcm_races(pcm_database_id, race_name=race_name)}")
     app.close()
 
 

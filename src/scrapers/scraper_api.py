@@ -1,18 +1,18 @@
 import sys
-
 import requests
 import datetime
 import os
-
 import pandas
 from abc import ABC, abstractmethod
 import sqlite3
 from typing import List, Dict
+
 from model import model_api
-from utils import logger_helper
+from utils import logger_helper, commons
+
 logger = logger_helper.get_logger(__name__)
 
-STARTLIST_DIR_PATH = os.path.join("src", "data", "startlists")
+
 
 
 def download_file(url: str, save_file_path):
@@ -39,25 +39,34 @@ def download_file(url: str, save_file_path):
 
 
 class StartListScraper(ABC):
-    def __init__(self, race_year: int, race_name: str):
+    def __init__(self, data_source_name, race_year: int = None, race_name: str = None, start_list_url: str = None):
         self.race_year = race_year
-        self.race_name = race_name.replace("'", " ")
-        self.race_name_dashed = self.race_name.replace(" ", "-")
-        self.start_list_url = self.get_start_list_raw_url()
-        self.data_source_name = "unknown"
+        self.race_name = race_name.replace("'", " ") if race_name else None
+        self.race_name_dashed = self.race_name.replace(" ", "-") if self.race_name else None
+        if (not self.race_name or not self.race_year) and not start_list_url:
+            logger.error("You must provide either race_name and race_year or start_list_url to the StartListScraper")
+            sys.exit(1)
+
+        self.start_list_url = start_list_url if start_list_url else self.get_start_list_raw_url()
+        self.data_source_name = data_source_name
+
 
     @abstractmethod
     def get_start_list_raw_url(self) -> str:
         pass
 
     def get_start_list_raw_dir_path(self) -> str:
-        return STARTLIST_DIR_PATH
+        start_list_raw_path = os.path.join(commons.START_LIST_INPUT_PATH, self.data_source_name)
+        os.makedirs(start_list_raw_path, exist_ok=True)
+        return start_list_raw_path
 
     def get_start_list_raw_file_name(self) -> str:
-        return f"{self.data_source_name}-{self.race_name_dashed}-{self.race_year}.html"
+        if self.race_name_dashed and self.race_year:
+            return f"{self.race_name_dashed}-{self.race_year}.html"
+        return f"{self.start_list_url.replace('/', '_').replace(':', '_')}.html"
 
-    def get_start_list_raw_file_path(self) -> str:
-        return os.path.join(self.get_start_list_raw_dir_path(), self.data_source_name, self.get_start_list_raw_file_name())
+    def get_start_list_raw_file_path(self) -> str: 
+        return os.path.join(self.get_start_list_raw_dir_path(), self.get_start_list_raw_file_name())
 
     def does_start_list_raw_file_exist(self):
         if os.path.exists(self.get_start_list_raw_file_path()):
