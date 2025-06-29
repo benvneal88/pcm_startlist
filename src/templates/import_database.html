@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Import PCM Database{% endblock %}
+
+{% block content %}
+<h1>Import PCM Database</h1>
+
+<div class="row">
+    <div class="col-md-6">
+        <form method="POST">
+            <div class="mb-3">
+                <label for="pcm_database_name" class="form-label">PCM Database Name</label>
+                <input type="text" class="form-control" id="pcm_database_name" name="pcm_database_name" required>
+                <div class="form-text">Enter the name of the PCM database file (without extension)</div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="pcm_version" class="form-label">PCM Version</label>
+                <select class="form-select" id="pcm_version" name="pcm_version">
+                    <option value="2025" selected>2025</option>
+                    <option value="2024">2024</option>
+                    <option value="2023">2023</option>
+                    <option value="2022">2022</option>
+                </select>
+            </div>
+            
+            <button type="submit" class="btn btn-primary">Import Database</button>
+            <a href="{{ url_for('list_databases') }}" class="btn btn-secondary">Cancel</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

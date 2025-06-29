@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h1>PCM Start List Generator</h1>
+        <p class="lead">Generate start lists for Pro Cycling Manager races by combining PCM database data with real-world race start lists.</p>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6 col-lg-4 mb-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">Import PCM Database</h5>
+                <p class="card-text">Import a new PCM database to use for generating start lists.</p>
+                <a href="{{ url_for('import_database') }}" class="btn btn-primary">Import Database</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 col-lg-4 mb-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">View Databases</h5>
+                <p class="card-text">View all imported PCM databases and their races.</p>
+                <a href="{{ url_for('list_databases') }}" class="btn btn-primary">View Databases</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 col-lg-4 mb-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">Generate Start List</h5>
+                <p class="card-text">Create a new start list for a specific race and year.</p>
+                <a href="{{ url_for('generate_start_list') }}" class="btn btn-primary">Generate Start List</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 col-lg-4 mb-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">View Start Lists</h5>
+                <p class="card-text">View all existing start lists that have been generated.</p>
+                <a href="{{ url_for('show_start_lists') }}" class="btn btn-primary">View Start Lists</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

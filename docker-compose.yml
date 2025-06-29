@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  pcm-startlist:
+    build: .
+    ports:
+      - "8080:5000"  # Changed from 6000 to 8080 (safe port)
+    volumes:
+      - ./src/:/app/src/
+    environment:
+      - FLASK_ENV=production
+    restart: unless-stopped

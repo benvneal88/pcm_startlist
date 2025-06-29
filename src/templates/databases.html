@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}PCM Databases{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>PCM Databases</h1>
+    <a href="{{ url_for('import_database') }}" class="btn btn-success">Import New Database</a>
+</div>
+
+{% if databases %}
+<div class="table-responsive">
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Database Name</th>
+                <th>PCM Version</th>
+                <th>Created At</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for db in databases %}
+            <tr>
+                <td>{{ db.id }}</td>
+                <td>{{ db.pcm_database_name }}</td>
+                <td>{{ db.pcm_version }}</td>
+                <td>{{ db.created_at }}</td>
+                <td>
+                    <a href="{{ url_for('show_races', database_id=db.id) }}" class="btn btn-sm btn-primary">View Races</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="alert alert-info">
+    <h4>No databases found</h4>
+    <p>You haven't imported any PCM databases yet. <a href="{{ url_for('import_database') }}">Import your first database</a> to get started.</p>
+</div>
+{% endif %}
+{% endblock %}
