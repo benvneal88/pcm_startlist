@@ -4,6 +4,7 @@ import pandas as pd
 from tqdm import tqdm
 from thefuzz import process, fuzz
 from enum import Enum
+from sqlalchemy import text
 
 from scrapers import procyclingstats
 from utils import database_helper
@@ -18,8 +19,11 @@ APP_DATABASE_FILE = os.path.join("src", "data", "dbs", "app", "v01.sqlite")
 APP_DATABASE_NAME = "pcm-startlist-generator"
 SCRAPER_DATA_SOURCE = "procyclingstats"
 
+# PostgreSQL configuration
+DATABASE_URL = os.getenv('DATABASE_URL', f'sqlite:///{APP_DATABASE_FILE}')
+
 def escape_text_sql(text):
-    return text.replace("'", " ")
+    return text.replace("'", "''")  # Proper SQL escaping
 
 
 class TableName(Enum):
@@ -35,26 +39,36 @@ class TableName(Enum):
     TEAMS = "tbl_teams"
     START_LIST_RACES = "tbl_start_list_races"
     CYCLISTS = "tbl_cyclists"
-    CYCLISTS_RACES_MTM = "tbl_cyclists_races_mtm"
 
 class AppDatabase:
     """Interface to the application database."""
-    def __init__(self, db_file=APP_DATABASE_FILE):
+    def __init__(self, db_file=APP_DATABASE_FILE, db_url=None):
         self.db_file = db_file
+        self.db_url = db_url or DATABASE_URL
         self.connection = None
         self.scraper = None
-        # Ensure directory exists
-        os.makedirs(os.path.dirname(self.db_file), exist_ok=True)
+        self.is_postgresql = self.db_url.startswith('postgresql')
+        
+        if not self.is_postgresql:
+            # Ensure directory exists for SQLite
+            os.makedirs(os.path.dirname(self.db_file), exist_ok=True)
+        
         self.connect()
         self.init_tables()
 
     def connect(self):
         if self.connection is None:
-            self.connection = database_helper.get_database_connection(self.db_file)
+            self.connection = database_helper.get_database_connection(
+                db_file=self.db_file if not self.is_postgresql else None,
+                db_url=self.db_url if self.is_postgresql else None
+            )
 
     def close(self):
         if self.connection:
-            self.connection.close()
+            if hasattr(self.connection, 'dispose'):
+                self.connection.dispose()
+            else:
+                self.connection.close()
             self.connection = None
 
     def init_scraper(self, race_year, race_name, start_list_url=None):
@@ -62,141 +76,148 @@ class AppDatabase:
             self.scraper = procyclingstats.ProCyclingStatsStartListScraper(race_year, race_name, start_list_url)
 
     def init_tables(self):
-        # Create app database if it doesn't exist
-        cursor = self.connection.cursor()
+        """Create database tables - works for both SQLite and PostgreSQL"""
+        if self.is_postgresql:
+            self._init_postgresql_tables()
+        else:
+            self._init_sqlite_tables()
 
-        # PCM Tables
-        cursor.execute(f'''
-            CREATE TABLE IF NOT EXISTS {TableName.PCM_DATABASE.value}(
-                id integer PRIMARY KEY,
-                pcm_database_name text NOT NULL,
-                pcm_version text NOT NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
+    def _init_postgresql_tables(self):
+        """Initialize PostgreSQL tables"""
+        logger.info("Initializing PostgreSQL tables...")
+        with self.connection.connect() as conn:
+            # PCM Tables
+            conn.execute(text(f'''
+                CREATE TABLE IF NOT EXISTS {TableName.PCM_DATABASE.value}(
+                    id SERIAL PRIMARY KEY,
+                    pcm_database_name TEXT NOT NULL,
+                    pcm_version TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            '''))
 
-        cursor.execute(f'''
-            CREATE TABLE IF NOT EXISTS {TableName.PCM_CYCLIST.value} (
-                pcm_database_id INTEGER NOT NULL,
-                cyclist_id INTEGER NOT NULL,
-                team_id INTEGER NOT NULL,
-                cyclist_first_name TEXT NOT NULL,
-                cyclist_last_name TEXT NOT NULL,
-                FOREIGN KEY (pcm_database_id) REFERENCES {TableName.PCM_DATABASE.value} (id)
-                     ON DELETE CASCADE
-                     ON UPDATE NO ACTION
-            )
-        ''')
+            conn.execute(text(f'''
+                CREATE TABLE IF NOT EXISTS {TableName.PCM_CYCLIST.value} (
+                    pcm_database_id INTEGER NOT NULL,
+                    cyclist_id INTEGER NOT NULL,
+                    team_id INTEGER NOT NULL,
+                    cyclist_first_name TEXT NOT NULL,
+                    cyclist_last_name TEXT NOT NULL,
+                    FOREIGN KEY (pcm_database_id) REFERENCES {TableName.PCM_DATABASE.value} (id)
+                         ON DELETE CASCADE
+                         ON UPDATE NO ACTION
+                )
+            '''))
 
-        cursor.execute(f'''
-            CREATE TABLE IF NOT EXISTS {TableName.PCM_TEAM.value} (
-                pcm_database_id INTEGER NOT NULL,
-                team_id INTEGER NOT NULL,
-                team_name TEXT NOT NULL,
-                team_short_name TEXT NULL,
-                FOREIGN KEY (pcm_database_id) REFERENCES {TableName.PCM_DATABASE.value} (id)
-                     ON DELETE CASCADE
-                     ON UPDATE NO ACTION
-            )
-        ''')
+            conn.execute(text(f'''
+                CREATE TABLE IF NOT EXISTS {TableName.PCM_TEAM.value} (
+                    pcm_database_id INTEGER NOT NULL,
+                    team_id INTEGER NOT NULL,
+                    team_name TEXT NOT NULL,
+                    team_short_name TEXT NULL,
+                    FOREIGN KEY (pcm_database_id) REFERENCES {TableName.PCM_DATABASE.value} (id)
+                         ON DELETE CASCADE
+                         ON UPDATE NO ACTION
+                )
+            '''))
 
-        cursor.execute(f'''
-            CREATE TABLE IF NOT EXISTS {TableName.PCM_RACE.value} (
-                pcm_database_id INTEGER NOT NULL,
-                race_id INTEGER NOT NULL,
-                race_name TEXT NOT NULL,
-                race_abbrreviation TEXT NOT NULL,
-                file_name TEXT NOT NULL,
-                FOREIGN KEY (pcm_database_id) REFERENCES {TableName.PCM_DATABASE.value} (id)
-                     ON DELETE CASCADE
-                     ON UPDATE NO ACTION
-            )
-        ''')
+            conn.execute(text(f'''
+                CREATE TABLE IF NOT EXISTS {TableName.PCM_RACE.value} (
+                    pcm_database_id INTEGER NOT NULL,
+                    race_id INTEGER NOT NULL,
+                    race_name TEXT NOT NULL,
+                    race_abbrreviation TEXT NOT NULL,
+                    file_name TEXT NOT NULL,
+                    FOREIGN KEY (pcm_database_id) REFERENCES {TableName.PCM_DATABASE.value} (id)
+                         ON DELETE CASCADE
+                         ON UPDATE NO ACTION
+                )
+            '''))
 
-        # Start list staging tables
-        cursor.execute(f'''
-            CREATE TABLE IF NOT EXISTS {TableName.START_LIST_FILES.value}(
-                id integer PRIMARY KEY,
-                data_source text,
-                race_year integer,
-                race_name text,
-                url text,
-                blob_content text,
-                downloaded_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
+            # Start list staging tables
+            conn.execute(text(f'''
+                CREATE TABLE IF NOT EXISTS {TableName.START_LIST_FILES.value}(
+                    id SERIAL PRIMARY KEY,
+                    data_source TEXT,
+                    race_year INTEGER,
+                    race_name TEXT,
+                    url TEXT,
+                    blob_content TEXT,
+                    downloaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            '''))
 
-        cursor.execute(f'''
-            CREATE TABLE IF NOT EXISTS {TableName.START_LIST_CYCLISTS.value} (
-                id integer PRIMARY KEY,
-                start_list_file_id integer,
-                team_name text,
-                cyclist_name text,
-                cyclist_first_name text,
-                cyclist_last_name text,
-                FOREIGN KEY (start_list_file_id) REFERENCES {TableName.START_LIST_FILES.value} (id)
-                     ON DELETE CASCADE
-                     ON UPDATE NO ACTION
-            )
-        ''')
+            conn.execute(text(f'''
+                CREATE TABLE IF NOT EXISTS {TableName.START_LIST_CYCLISTS.value} (
+                    id SERIAL PRIMARY KEY,
+                    start_list_file_id INTEGER,
+                    team_name TEXT,
+                    cyclist_name TEXT,
+                    cyclist_first_name TEXT,
+                    cyclist_last_name TEXT,
+                    FOREIGN KEY (start_list_file_id) REFERENCES {TableName.START_LIST_FILES.value} (id)
+                         ON DELETE CASCADE
+                         ON UPDATE NO ACTION
+                )
+            '''))
 
-        # App Final Tables
-        cursor.execute(f'''
-            CREATE TABLE IF NOT EXISTS {TableName.START_LIST_RACES.value}(
-                id integer PRIMARY KEY,
-                name text NOT NULL,
-                year integer NOT NULL,
-                pcm_race_id integer NOT NULL,
-                pcm_database_id integer NOT NULL,
-                FOREIGN KEY (pcm_database_id) REFERENCES {TableName.PCM_DATABASE.value} (id)
-                     ON DELETE CASCADE
-                     ON UPDATE NO ACTION
-            )
-        ''')
+            # App Final Tables
+            conn.execute(text(f'''
+                CREATE TABLE IF NOT EXISTS {TableName.START_LIST_RACES.value}(
+                    id SERIAL PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    year INTEGER NOT NULL,
+                    pcm_race_id INTEGER NOT NULL,
+                    pcm_database_id INTEGER NOT NULL,
+                    FOREIGN KEY (pcm_database_id) REFERENCES {TableName.PCM_DATABASE.value} (id)
+                         ON DELETE CASCADE
+                         ON UPDATE NO ACTION
+                )
+            '''))
 
-        cursor.execute(f'''
-            CREATE TABLE IF NOT EXISTS {TableName.TEAMS.value}(
-                id integer PRIMARY KEY,
-                start_list_race_id integer,
-                pcm_team_id integer,
-                team_name text,
-                FOREIGN KEY (start_list_race_id) REFERENCES {TableName.START_LIST_RACES.value} (id)
-                     ON DELETE CASCADE
-                     ON UPDATE NO ACTION
-            )
-        ''')
+            conn.execute(text(f'''
+                CREATE TABLE IF NOT EXISTS {TableName.TEAMS.value}(
+                    id SERIAL PRIMARY KEY,
+                    start_list_race_id INTEGER,
+                    pcm_team_id INTEGER,
+                    team_name TEXT,
+                    FOREIGN KEY (start_list_race_id) REFERENCES {TableName.START_LIST_RACES.value} (id)
+                         ON DELETE CASCADE
+                         ON UPDATE NO ACTION
+                )
+            '''))
 
-        cursor.execute(f'''
-            CREATE TABLE IF NOT EXISTS {TableName.CYCLISTS.value}(
-                id integer PRIMARY KEY,
-                team_id integer,
-                pcm_cyclist_id integer,
-                cyclist_name text,
-                FOREIGN KEY (team_id) REFERENCES {TableName.TEAMS.value} (id)
-                     ON DELETE CASCADE
-                     ON UPDATE NO ACTION
-            )
-        ''')
+            conn.execute(text(f'''
+                CREATE TABLE IF NOT EXISTS {TableName.CYCLISTS.value}(
+                    id SERIAL PRIMARY KEY,
+                    team_id INTEGER,
+                    pcm_cyclist_id INTEGER,
+                    cyclist_name TEXT,
+                    FOREIGN KEY (team_id) REFERENCES {TableName.TEAMS.value} (id)
+                         ON DELETE CASCADE
+                         ON UPDATE NO ACTION
+                )
+            '''))
 
-        cursor.execute(f'''
-            CREATE VIEW IF NOT EXISTS {TableName.PCM_DATABASE_VIEW.value} AS
-            SELECT d.id as pcm_database_id, r.pcm_race_id, r.race_name, t.pcm_team_id, t.team_name, c.pcm_cyclist_id, c.cyclist_first_name, c.cyclist_last_name
-            FROM {TableName.PCM_DATABASE.value} d
-                INNER JOIN {TableName.PCM_RACE.value} r ON d.id = r.pcm_database_id
-                INNER JOIN {TableName.PCM_TEAM.value} t ON d.id = t.pcm_database_id
-                INNER JOIN {TableName.PCM_CYCLIST.value} c ON t.team_id = c.team_id
-        ''')
+            conn.execute(text(f'''
+                CREATE VIEW {TableName.PCM_DATABASE_VIEW.value} AS
+                SELECT d.id as pcm_database_id, r.race_id, r.race_name, t.team_id, t.team_name, c.cyclist_id, c.cyclist_first_name, c.cyclist_last_name
+                FROM {TableName.PCM_DATABASE.value} d
+                    INNER JOIN {TableName.PCM_RACE.value} r ON d.id = r.pcm_database_id
+                    INNER JOIN {TableName.PCM_TEAM.value} t ON d.id = t.pcm_database_id
+                    INNER JOIN {TableName.PCM_CYCLIST.value} c ON t.team_id = c.team_id
+            '''))
 
-        cursor.execute(f'''
-            CREATE VIEW IF NOT EXISTS {TableName.START_LIST_VIEW.value} AS
-            SELECT d.id as pcm_database_id, d.pcm_database_name, d.pcm_version, r.year as race_year, r.pcm_race_id, r.name as race_name, t.pcm_team_id, t.team_name, c.pcm_cyclist_id, c.cyclist_name
-            FROM {TableName.PCM_DATABASE.value} d
-                INNER JOIN  {TableName.START_LIST_RACES.value} r ON d.id = r.pcm_database_id
-                INNER JOIN {TableName.TEAMS.value} t ON r.id = t.start_list_race_id
-                INNER JOIN {TableName.CYCLISTS.value} c ON t.id = c.team_id
-        ''')
+            conn.execute(text(f'''
+                CREATE VIEW {TableName.START_LIST_VIEW.value} AS
+                SELECT d.id as pcm_database_id, d.pcm_database_name, d.pcm_version, r.year as race_year, r.pcm_race_id, r.name as race_name, t.pcm_team_id, t.team_name, c.pcm_cyclist_id, c.cyclist_name
+                FROM {TableName.PCM_DATABASE.value} d
+                    INNER JOIN  {TableName.START_LIST_RACES.value} r ON d.id = r.pcm_database_id
+                    INNER JOIN {TableName.TEAMS.value} t ON r.id = t.start_list_race_id
+                    INNER JOIN {TableName.CYCLISTS.value} c ON t.id = c.team_id
+            '''))
         
-        self.connection.commit()
+
 
     def import_pcm_data(self, pcm_version, pcm_database_name):
         """Fetches and stages the data from the PCM database.
@@ -229,12 +250,22 @@ class AppDatabase:
     def insert_table(self, object_name, df):
         table_name = TableName[object_name].value
         logger.info(f"Inserting {len(df)} rows into table '{table_name}'")
-        df.to_sql(
-            name=table_name,
-            con=self.connection,
-            if_exists="append",
-            index=False
-        )
+        
+        if self.is_postgresql:
+            df.to_sql(
+                name=table_name,
+                con=self.connection,
+                if_exists="append",
+                index=False,
+                method='multi'
+            )
+        else:
+            df.to_sql(
+                name=table_name,
+                con=self.connection,
+                if_exists="append",
+                index=False
+            )
 
     def get_start_list_data(self, pcm_database_id, pcm_race_id, race_year):
         query = f"""
@@ -506,6 +537,11 @@ class AppDatabase:
     def get_pcm_database_id(self, pcm_version, pcm_database_name):
         """Returns the database id for a given PCM version and database name."""
         sql_statement = f"SELECT id as pcm_database_id FROM {TableName.PCM_DATABASE.value} WHERE pcm_database_name = '{escape_text_sql(pcm_database_name)}' AND pcm_version = '{escape_text_sql(pcm_version)}' order by created_at desc"
-        df = pd.read_sql_query(sql_statement, self.connection)
+        
+        if self.is_postgresql:
+            df = pd.read_sql_query(sql_statement, self.connection)
+        else:
+            df = pd.read_sql_query(sql_statement, self.connection)
+        
         pcm_database_id = df['pcm_database_id'].iloc[0] if not df.empty else None
-        return pcm_database_id  
+        return pcm_database_id

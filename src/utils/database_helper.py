@@ -1,30 +1,32 @@
 import sys
+import os
 import sqlite3
+import pandas as pd
+from sqlalchemy import create_engine
 from utils import logger_helper
 
 logger = logger_helper.get_logger(__name__)
 
-def get_database_connection(db_file):
-    """Create a database connection to the SQLite database specified by db_file."""
-    conn = None
-    try:
-        logger.info(f"Connecting to database file: '{db_file}'")
-        conn = sqlite3.connect(db_file)
-        conn.row_factory = sqlite3.Row  # Enable row access by name
-    except sqlite3.Error as e:
-        logger.error(f"Error connecting to database: '{e}'")
-        sys.exit(1)
-    return conn
+def get_database_connection(db_file=None, db_url=None):
+    """Get database connection - supports both SQLite and PostgreSQL"""
+    if db_url:
+        # PostgreSQL connection
+        logger.info(f"Connecting to PostgreSQL database")
+        engine = create_engine(db_url)
+        return engine
+    else:
+        # SQLite connection (fallback)
+        logger.info(f"Connecting to SQLite database: {db_file}")
+        return sqlite3.connect(db_file)
 
-def run_query(conn, query, params=()):
-    """Execute a query and return the results."""
-    cursor = conn.cursor()
-    try:
-        cursor.execute(query, params)
-        return cursor.fetchall()
-    except sqlite3.Error as e:
-        logger.error(f"Error executing query: {e}")
-        return None
+def run_query(connection, query):
+    """Execute query and return results as DataFrame"""
+    if hasattr(connection, 'execute'):
+        # SQLite connection
+        return pd.read_sql_query(query, connection)
+    else:
+        # SQLAlchemy engine (PostgreSQL)
+        return pd.read_sql_query(query, connection)
 
 def list_tables(conn):
     """List all tables in the connected database."""

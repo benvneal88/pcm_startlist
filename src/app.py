@@ -10,8 +10,9 @@ logger = logger_helper.get_logger(__name__)
 app = Flask('PCMStartListGenerator')
 app.secret_key = 'your-secret-key-here'  # Change this in production
 
-# Initialize database
-db = AppDatabase()
+# Initialize database with PostgreSQL support
+db_url = os.getenv('DATABASE_URL')
+db = AppDatabase(db_url=db_url)
 
 @app.route('/')
 def index():

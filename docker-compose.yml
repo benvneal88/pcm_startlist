@@ -1,12 +1,30 @@
 version: '3.8'
 
 services:
+  postgres:
+    image: postgres:15
+    env_file:
+      - .env  # This loads POSTGRES_PASSWORD=pcm_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+
   pcm-startlist:
     build: .
-    ports:
-      - "8080:5000"  # Changed from 6000 to 8080 (safe port)
-    volumes:
-      - ./src/:/app/src/
     environment:
-      - FLASK_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - FLASK_ENV=${FLASK_ENV}
+      - SECRET_KEY=${SECRET_KEY}
+    ports:
+      - "8080:5000"
+    volumes:
+      - ./src/data:/app/src/data
+    depends_on:
+      - postgres
     restart: unless-stopped
+
+volumes:
+  postgres_data:
