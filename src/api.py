@@ -79,14 +79,20 @@ class AppAPI():
 
         :return:
         """
-        return self.app_model.get_pcm_databases(pcm_version)
+        df = self.app_model.get_pcm_databases(pcm_version)
+        if df.empty:
+            return []
+        return df.to_dict(orient='records')
 
 
     def get_pcm_races(self, pcm_database_id, race_name=None):
         """Retrieves PCM races
         :return:
         """
-        return self.app_model.get_pcm_races(pcm_database_id, race_name=race_name)
+        df = self.app_model.get_pcm_races(pcm_database_id, race_name=race_name)
+        if df.empty:
+            return []
+        return df.to_dict(orient='records')
 
 
     def get_start_lists(self, pcm_version=None, pcm_database_name=None):
@@ -94,5 +100,7 @@ class AppAPI():
 
         :return:
         """
-
-        return self.app_model.get_start_lists(pcm_version, pcm_database_name)
+        df = self.app_model.get_start_lists(pcm_version, pcm_database_name)
+        if df.empty:
+            return []
+        return df.to_dict(orient='records')

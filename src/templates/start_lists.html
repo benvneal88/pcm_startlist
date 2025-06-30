@@ -19,7 +19,8 @@
                                 <select class="form-select" id="database_select" name="database_id" required>
                                     <option value="">Select a PCM database</option>
                                     {% for db in databases %}
-                                    <option value="{{ db.id }}" data-version="{{ db.pcm_version }}">
+                                    <option value="{{ db.id }}" data-version="{{ db.pcm_version }}" 
+                                            {% if request.args.get('database_id')|int == db.id %}selected{% endif %}>
                                         {{ db.pcm_database_name }} (PCM {{ db.pcm_version }})
                                     </option>
                                     {% endfor %}
@@ -133,7 +134,7 @@
                         <th>PCM Version</th>
                         <th>Race Name</th>
                         <th>Race Year</th>
-                        <th>Cyclists Count</th>
+                        <th>Count</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -144,7 +145,7 @@
                         <td>{{ start_list.pcm_version }}</td>
                         <td>{{ start_list.race_name }}</td>
                         <td>{{ start_list.race_year }}</td>
-                        <td>{{ start_list['count(*)'] }}</td>
+                        <td>{{ start_list.count }}</td>
                         <td>
                             <div class="btn-group-actions">
                                 <button class="btn btn-sm btn-info" onclick="viewStartList({{ start_list.pcm_database_id }}, '{{ start_list.race_name }}', {{ start_list.race_year }})">
@@ -189,4 +190,27 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Pre-select race if race_id is provided in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const preSelectedRaceId = urlParams.get('race_id');
+    const preSelectedDatabaseId = urlParams.get('database_id');
+    
+    if (preSelectedDatabaseId) {
+        const databaseSelect = document.getElementById('database_select');
+        databaseSelect.value = preSelectedDatabaseId;
+        databaseSelect.dispatchEvent(new Event('change'));
+        
+        // Wait for races to load, then select the race
+        if (preSelectedRaceId) {
+            setTimeout(() => {
+                const raceSelect = document.getElementById('race_select');
+                raceSelect.value = preSelectedRaceId;
+            }, 1000);
+        }
+    }
+});
+</script>
 {% endblock %}

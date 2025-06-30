@@ -116,22 +116,24 @@
             <table class="table table-striped">
                 <thead>
                     <tr>
-                        <th>ID</th>
+                        <th>PCM Database Id</th>
                         <th>Database Name</th>
                         <th>PCM Version</th>
-                        <th>Created At</th>
+                        <th>Imported At</th>
+                        <th>Cyclists-Races Count</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for db in databases %}
                     <tr>
-                        <td>{{ db.id }}</td>
+                        <td>{{ db.pcm_database_id }}</td>
                         <td>{{ db.pcm_database_name }}</td>
                         <td>{{ db.pcm_version }}</td>
                         <td>{{ db.created_at }}</td>
+                        <td>{{ db.cyclists_races_count }}</td>
                         <td>
-                            <a href="{{ url_for('show_races', database_id=db.id) }}" class="btn btn-sm btn-primary">View Races</a>
+                            <a href="{{ url_for('show_races', pcm_database_id=db.pcm_database_id) }}" class="btn btn-sm btn-primary">View Races</a>
                         </td>
                     </tr>
                     {% endfor %}

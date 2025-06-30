@@ -201,7 +201,7 @@ class AppDatabase:
 
             conn.execute(text(f'''
                 CREATE OR REPLACE VIEW {TableName.PCM_DATABASE_VIEW.value} AS
-                SELECT d.id as pcm_database_id, r.race_id, r.race_name, t.team_id, t.team_name, c.cyclist_id, c.cyclist_first_name, c.cyclist_last_name
+                SELECT d.id as pcm_database_id, d.pcm_database_name, d.pcm_version, d.created_at, r.race_id, r.race_name, t.team_id, t.team_name, c.cyclist_id, c.cyclist_first_name, c.cyclist_last_name
                 FROM {TableName.PCM_DATABASE.value} d
                     INNER JOIN {TableName.PCM_RACE.value} r ON d.id = r.pcm_database_id
                     INNER JOIN {TableName.PCM_TEAM.value} t ON d.id = t.pcm_database_id
@@ -487,14 +487,20 @@ class AppDatabase:
         )
 
         logger.info(f"Inserted {len(cyclists_df)} cyclists into the table '{TableName.CYCLISTS.value}'")
-        import pdb; pdb.set_trace()
 
     def get_pcm_databases(self, pcm_version=None):
         filter = ""
         if pcm_version:
             filter = f" WHERE pcm_version = {pcm_version}"
 
-        df = pd.read_sql_query(f"SELECT id as pcm_database_id, pcm_version, created_at FROM {TableName.PCM_DATABASE.value} {filter} ORDER BY pcm_database_name", self.connection)
+        query = f"""
+            SELECT pcm_database_id, pcm_database_name, pcm_version, created_at, count(*) as cyclists_races_count 
+            FROM {TableName.PCM_DATABASE_VIEW.value} 
+            {filter} 
+            GROUP BY 1,2,3,4 
+            ORDER BY pcm_database_id DESC
+        """
+        df = pd.read_sql_query(query, self.connection)
         return df
 
     def get_pcm_database_details(self, pcm_database_id):
@@ -505,11 +511,15 @@ class AppDatabase:
         return df['pcm_database_name'].iloc[0], df['pcm_version'].iloc[0] 
 
     def get_pcm_races(self, pcm_database_id, race_name=None):
-        filter = f" WHERE pcm_database_id = {pcm_database_id}"
+        filter_clause = f" WHERE pcm_database_id = {pcm_database_id}"
         if race_name:
-            filter += f" and race_name LIKE '%{escape_text_sql(race_name)}%'"
-        logger.info(f"Fetching PCM races with filter {filter}")
-        df = pd.read_sql_query(f"SELECT * FROM {TableName.PCM_RACE.value} {filter} ORDER BY race_name", self.connection)
+            filter_clause += f" AND race_name ILIKE '%%{escape_text_sql(race_name)}%%'"
+        
+        query = f"SELECT * FROM {TableName.PCM_RACE.value} {filter_clause} ORDER BY race_name"
+        logger.info(f"Fetching PCM races with query {query}")
+        
+        # Use pandas for PostgreSQL
+        df = pd.read_sql_query(query, self.connection)
         return df
 
     def get_start_lists(self, pcm_version=None, pcm_database_name=None):
@@ -522,7 +532,17 @@ class AppDatabase:
             else:
                 filter += " WHERE"
             filter += f" pcm_database_name = '{escape_text_sql(pcm_database_name)}'"
-        df = pd.read_sql_query(f"SELECT pcm_database_id, pcm_version, pcm_database_name, race_name, race_year, count(*) FROM {TableName.START_LIST_VIEW.value} {filter} GROUP BY 1,2,3,4,5 ORDER BY pcm_database_name DESC, race_year DESC", self.connection)
+        
+        # Fix the count(*) aggregation for PostgreSQL compatibility
+        query = f"""
+            SELECT pcm_database_id, pcm_version, pcm_database_name, race_name, race_year, COUNT(*) as race_count
+            FROM {TableName.START_LIST_VIEW.value} 
+            {filter} 
+            GROUP BY pcm_database_id, pcm_version, pcm_database_name, race_name, race_year 
+            ORDER BY pcm_database_name DESC, race_year DESC
+        """
+        
+        df = database_helper.run_query(self.connection, query)
         return df
 
     def get_pcm_race_details(self, pcm_database_id, pcm_race_id):

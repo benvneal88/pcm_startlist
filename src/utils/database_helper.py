@@ -2,7 +2,7 @@ import sys
 import os
 import sqlite3
 import pandas as pd
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from utils import logger_helper
 
 logger = logger_helper.get_logger(__name__)
@@ -20,13 +20,11 @@ def get_database_connection(db_file=None, db_url=None):
         return sqlite3.connect(db_file)
 
 def run_query(connection, query):
-    """Execute query and return results as DataFrame"""
-    if hasattr(connection, 'execute'):
-        # SQLite connection
-        return pd.read_sql_query(query, connection)
-    else:
-        # SQLAlchemy engine (PostgreSQL)
-        return pd.read_sql_query(query, connection)
+    """Execute query and return results as list of dictionaries"""
+    # Only PostgreSQL/SQLAlchemy now
+    with connection.connect() as conn:
+        result = conn.execute(text(query))
+        return [dict(row._mapping) for row in result]
 
 def list_tables(conn):
     """List all tables in the connected database."""

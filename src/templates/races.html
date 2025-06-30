@@ -3,39 +3,46 @@
 {% block title %}PCM Races{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h1>PCM Races</h1>
-        {% if database_info %}
-        <p class="text-muted">Database: {{ database_info.pcm_database_name }} (PCM {{ database_info.pcm_version }})</p>
-        {% endif %}
+<h1>PCM Races</h1>
+
+{% if selected_database %}
+<!-- Selected Database Info -->
+<div class="alert alert-info mb-4">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <strong>Selected Database:</strong> {{ selected_database.pcm_database_name }} (PCM {{ selected_database.pcm_version }})
+        </div>
+        <a href="{{ url_for('list_databases') }}" class="btn btn-outline-secondary btn-sm">Back to Databases</a>
     </div>
-    <a href="{{ url_for('list_databases') }}" class="btn btn-secondary">Back to Databases</a>
 </div>
 
-<!-- Search Form -->
+<!-- Race Search Section -->
 <div class="card mb-4">
     <div class="card-body">
-        <form method="GET" class="row g-3">
-            <div class="col-md-8">
-                <label for="race_name" class="form-label">Search Races</label>
-                <input type="text" class="form-control" id="race_name" name="race_name" 
-                       value="{{ race_name_filter }}" placeholder="Enter race name to filter">
-            </div>
-            <div class="col-md-4 d-flex align-items-end">
-                <button type="submit" class="btn btn-primary me-2">Search</button>
-                <a href="{{ url_for('show_races', database_id=database_id) }}" class="btn btn-outline-secondary">Clear</a>
+        <form method="GET">
+            <div class="row g-3">
+                <div class="col-md-8">
+                    <label for="race_name" class="form-label">Search Races</label>
+                    <input type="text" class="form-control" id="race_name" name="race_name" 
+                           value="{{ race_name_filter }}" placeholder="Enter race name to filter (leave blank for all races)">
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary me-2">Search</button>
+                    {% if race_name_filter %}
+                    <a href="{{ url_for('show_races', pcm_database_id=selected_database.pcm_database_id) }}" class="btn btn-outline-secondary">Clear</a>
+                    {% endif %}
+                </div>
             </div>
         </form>
     </div>
 </div>
 
+<!-- Races Table -->
 {% if races %}
 <div class="table-responsive">
     <table class="table table-striped">
         <thead>
             <tr>
-                <th>Race ID</th>
                 <th>Race Name</th>
                 <th>Abbreviation</th>
                 <th>File Name</th>
@@ -45,14 +52,13 @@
         <tbody>
             {% for race in races %}
             <tr>
-                <td>{{ race.race_id }}</td>
                 <td>{{ race.race_name }}</td>
                 <td>{{ race.race_abbrreviation }}</td>
                 <td><code>{{ race.file_name }}</code></td>
                 <td>
-                    <a href="{{ url_for('generate_start_list') }}?database_id={{ database_id }}&race_id={{ race.race_id }}" 
+                    <a href="{{ url_for('show_start_lists') }}?pcm_database_id={{ selected_database.pcm_database_id }}&race_id={{ race.race_id }}" 
                        class="btn btn-sm btn-primary">
-                        Generate Start List
+                        Select Race
                     </a>
                 </td>
             </tr>
@@ -62,16 +68,28 @@
 </div>
 
 <div class="mt-3">
-    <p class="text-muted">Showing {{ races|length }} race(s)</p>
+    <p class="text-muted">
+        Showing {{ races|length }} race(s)
+        {% if race_name_filter %} matching "{{ race_name_filter }}"{% endif %}
+    </p>
 </div>
 {% else %}
 <div class="alert alert-info">
     <h4>No races found</h4>
     {% if race_name_filter %}
-    <p>No races found matching "{{ race_name_filter }}". <a href="{{ url_for('show_races', database_id=database_id) }}">View all races</a></p>
+    <p>No races found matching "{{ race_name_filter }}". <a href="{{ url_for('show_races', pcm_database_id=selected_database.pcm_database_id) }}">View all races</a></p>
     {% else %}
     <p>This database doesn't contain any races or there was an error loading them.</p>
     {% endif %}
+</div>
+{% endif %}
+
+{% else %}
+<!-- No Database Selected -->
+<div class="alert alert-warning">
+    <h4>No Database Selected</h4>
+    <p>Please select a database first to view its races.</p>
+    <a href="{{ url_for('list_databases') }}" class="btn btn-primary">Go to Databases</a>
 </div>
 {% endif %}
 {% endblock %}
