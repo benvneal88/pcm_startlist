@@ -276,24 +276,6 @@ class AppDatabase:
         logger.debug(query)
         return pd.read_sql_query(query, self.connection)
 
-    def does_start_list_exist(self, race_name, race_year):
-        logger.info(f"Checking for Start Lists...")
-        df = database_helper.run_query(self.connection, f"SELECT downloaded_at FROM stg_start_list_files WHERE race_name = '{escape_text_sql(race_name)}' AND race_year = {race_year} ORDER BY downloaded_at DESC")
-        if len(df) > 0:
-            last_downloaded_at = df['downloaded_at'].iloc[0]
-            logger.info(f"✅ Start List for '{race_year} - {race_name}' is downloaded as of '{last_downloaded_at}'")
-            df2 = database_helper.run_query(conn, f"SELECT * FROM stg_start_list_cyclists WHERE race_name = '{escape_text_sql(race_name)}' AND race_year = {race_year}")
-            start_list_cyclists_count = len(df2)
-            if start_list_cyclists_count > 100:
-                logger.info(f"✅ {start_list_cyclists_count} Start List cyclists exist in database")
-            else:
-                logger.info(f"❌ Start List for '{race_year} - {race_name}' has been downloaded, but cyclist data not transformed")
-                return False
-            return True
-        else:
-            logger.info(f"❌ Start List for '{race_year} - {race_name}' has not been downloaded yet")
-        return False
-
     def download_and_stage_start_list(self, race_year, start_list_race_name, start_list_url=None, fetch_from_web=False):
         """Downloads the start list from the web and inserts it into the database."""
         self.init_scraper(race_year=race_year, race_name=start_list_race_name, start_list_url=start_list_url)
@@ -353,7 +335,6 @@ class AppDatabase:
             team_match = process.extractOne(team_name, pcm_teams_cyclists_df['team_name'], scorer=fuzz.token_sort_ratio)
             if team_match[1] < 80:  # if match score is below 80, consider it a poor match
                 logger.error(f"Can't find match for team '{team_name}'")
-                import pdb; pdb.set_trace()
                 return pd.Series([None, None])
 
             matched_team_name = team_match[0]
@@ -510,30 +491,36 @@ class AppDatabase:
             return None
         return df['pcm_database_name'].iloc[0], df['pcm_version'].iloc[0] 
 
+    def get_pcm_race(self, pcm_database_id, pcm_race_id):
+        filter_clause = f" WHERE pcm_database_id = {pcm_database_id} AND pcm_race_id = {pcm_race_id}"
+        query = f"SELECT pcm_database_id, race_id as pcm_race_id, race_name, race_abbrreviation, file_name FROM {TableName.PCM_RACE.value} {filter_clause} ORDER BY race_name"
+        logger.info(f"Fetching PCM race with query {query}")
+        df = pd.read_sql_query(query, self.connection)
+        return df
+
     def get_pcm_races(self, pcm_database_id, race_name=None):
         filter_clause = f" WHERE pcm_database_id = {pcm_database_id}"
         if race_name:
             filter_clause += f" AND race_name ILIKE '%%{escape_text_sql(race_name)}%%'"
         
-        query = f"SELECT * FROM {TableName.PCM_RACE.value} {filter_clause} ORDER BY race_name"
+        query = f"SELECT pcm_database_id, race_id as pcm_race_id, race_name, race_abbrreviation, file_name FROM {TableName.PCM_RACE.value} {filter_clause} ORDER BY race_name"
         logger.info(f"Fetching PCM races with query {query}")
         
         # Use pandas for PostgreSQL
         df = pd.read_sql_query(query, self.connection)
         return df
 
-    def get_start_lists(self, pcm_version=None, pcm_database_name=None):
+    def get_start_lists(self, pcm_database_id=None, pcm_race_id=None):
         filter = ""
-        if pcm_version:
-            filter += f" WHERE pcm_version = {pcm_version}"
-        if pcm_database_name:
+        if pcm_database_id:
+            filter += f" WHERE pcm_database_id = {pcm_database_id}"
+        if pcm_race_id:
             if filter:
                 filter += " AND"
             else:
                 filter += " WHERE"
-            filter += f" pcm_database_name = '{escape_text_sql(pcm_database_name)}'"
+            filter += f" pcm_race_id = {pcm_race_id}"
         
-        # Fix the count(*) aggregation for PostgreSQL compatibility
         query = f"""
             SELECT pcm_database_id, pcm_version, pcm_database_name, race_name, race_year, COUNT(*) as race_count
             FROM {TableName.START_LIST_VIEW.value} 
@@ -542,7 +529,7 @@ class AppDatabase:
             ORDER BY pcm_database_name DESC, race_year DESC
         """
         
-        df = database_helper.run_query(self.connection, query)
+        df = pd.read_sql_query(query, self.connection)
         return df
 
     def get_pcm_race_details(self, pcm_database_id, pcm_race_id):

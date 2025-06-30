@@ -120,43 +120,58 @@ def show_races_no_db():
     return redirect(url_for('list_databases'))
 
 @app.route('/start_lists', methods=['GET', 'POST'])
-def show_start_lists():
+def start_lists():
     """Show all existing start lists and handle generation"""
+    pcm_database_id = request.args.get('pcm_database_id', type=int)
+    pcm_race_id = request.args.get('pcm_race_id', type=int)
+    
     if request.method == 'POST':
         # Handle start list generation
-        pcm_database_id = request.form.get('pcm_database_id')
-        race_id = request.form.get('race_id')
+        pcm_database_id = request.form.get('pcm_database_id', type=int)
+        pcm_race_id = request.form.get('pcm_race_id', type=int)
         race_year = request.form.get('race_year')
         force_refresh = request.form.get('force_refresh') == 'on'
         
         try:
             # Here you would call your start list generation logic
-            flash(f"Start list generation initiated for race {race_id} in year {race_year}", 'info')
-            return redirect(url_for('show_start_lists'))
+            flash(f"Start list generation initiated for race {pcm_race_id} in year {race_year}", 'info')
+            return redirect(url_for('start_lists', pcm_database_id=pcm_database_id, pcm_race_id=pcm_race_id))
         except Exception as e:
             logger.error(f"Error generating start list: {str(e)}")
             flash(f"Error generating start list: {str(e)}", 'error')
     
-    # Handle filtering for GET requests
-    pcm_version = request.args.get('pcm_version')
-    pcm_database_name = request.args.get('pcm_database_name')
+    selected_database = None
+    selected_race = None
+    start_lists = []
     
     try:
-        start_lists = api.get_start_lists(pcm_version, pcm_database_name)
-        databases = api.get_pcm_databases()
+        if pcm_database_id and pcm_race_id:
+            # Get database info
+            databases = api.get_pcm_databases()
+            for db_row in databases:
+                if db_row['pcm_database_id'] == pcm_database_id:
+                    selected_database = db_row
+                    break
+            
+            # Get race info
+            if selected_database:
+                selected_race = api.get_pcm_race(pcm_database_id, pcm_race_id)[0]
+            
+            # Get start lists for this specific database and race
+            if selected_database and selected_race:
+                start_lists = api.get_start_lists(pcm_database_id, pcm_race_id)
+        
         return render_template('start_lists.html', 
                              start_lists=start_lists,
-                             databases=databases,
-                             pcm_versions=commons.PCM_VERSIONS,
-                             selected_version=pcm_version,
-                             selected_database=pcm_database_name)
+                             selected_database=selected_database,
+                             selected_race=selected_race)
     except Exception as e:
         logger.error(f"Error loading start lists: {str(e)}")
         flash(f"Error loading start lists: {str(e)}", 'error')
         return render_template('start_lists.html', 
                              start_lists=[], 
-                             databases=[],
-                             pcm_versions=commons.PCM_VERSIONS)
+                             selected_database=None,
+                             selected_race=None)
 
 @app.route('/api/races/<int:pcm_database_id>')
 def api_get_races(pcm_database_id):

@@ -95,12 +95,12 @@ class AppAPI():
         return df.to_dict(orient='records')
 
 
-    def get_start_lists(self, pcm_version=None, pcm_database_name=None):
+    def get_start_lists(self, pcm_database_id, pcm_race_id):
         """Retrieves start lists that have been generated along with the pcm database name
 
         :return:
         """
-        df = self.app_model.get_start_lists(pcm_version, pcm_database_name)
+        df = self.app_model.get_start_lists(pcm_database_id, pcm_race_id)
         if df.empty:
             return []
         return df.to_dict(orient='records')

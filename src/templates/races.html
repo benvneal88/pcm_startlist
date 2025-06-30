@@ -3,16 +3,29 @@
 {% block title %}PCM Races{% endblock %}
 
 {% block content %}
-<h1>PCM Races</h1>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>PCM Races</h1>
+    <a href="{{ url_for('list_databases') }}" class="btn btn-outline-secondary">Back to Databases</a>
+</div>
 
 {% if selected_database %}
 <!-- Selected Database Info -->
-<div class="alert alert-info mb-4">
-    <div class="d-flex justify-content-between align-items-center">
-        <div>
-            <strong>Selected Database:</strong> {{ selected_database.pcm_database_name }} (PCM {{ selected_database.pcm_version }})
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Selected Database</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <strong>Database ID:</strong> {{ selected_database.pcm_database_id }}
+            </div>
+            <div class="col-md-4">
+                <strong>PCM Version:</strong> {{ selected_database.pcm_version }}
+            </div>
+            <div class="col-md-4">
+                <strong>Database Name:</strong> {{ selected_database.pcm_database_name }}
+            </div>
         </div>
-        <a href="{{ url_for('list_databases') }}" class="btn btn-outline-secondary btn-sm">Back to Databases</a>
     </div>
 </div>
 
@@ -56,7 +69,7 @@
                 <td>{{ race.race_abbrreviation }}</td>
                 <td><code>{{ race.file_name }}</code></td>
                 <td>
-                    <a href="{{ url_for('show_start_lists') }}?pcm_database_id={{ selected_database.pcm_database_id }}&race_id={{ race.race_id }}" 
+                    <a href="{{ url_for('start_lists') }}?pcm_database_id={{ selected_database.pcm_database_id }}&pcm_race_id={{ race.pcm_race_id }}" 
                        class="btn btn-sm btn-primary">
                         Select Race
                     </a>

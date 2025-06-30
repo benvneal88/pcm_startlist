@@ -29,8 +29,8 @@ def main():
     parser_show_pcm_races.add_argument('--pcm_database_id', required=True)
     parser_show_pcm_races.add_argument('--race_name', default=None)
 
-    # Subcommand: show_start_lists
-    parser_showlists = subparsers.add_parser("show_start_lists", help="Show generated start lists")
+    # Subcommand: start_lists
+    parser_showlists = subparsers.add_parser("start_lists", help="Show generated start lists")
     parser_showlists.add_argument('--pcm_version', default=None)
     parser_showlists.add_argument('--pcm_database_name', default=None)
 
@@ -60,8 +60,8 @@ def main():
         api.show_pcm_databases(
             pcm_version=args.pcm_version
         )
-    elif args.command == "show_start_lists":
-        api.show_start_lists(
+    elif args.command == "start_lists":
+        api.start_lists(
             pcm_version=args.pcm_version,
             pcm_database_name=args.pcm_database_name
         )
