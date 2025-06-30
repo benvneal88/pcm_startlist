@@ -8,43 +8,23 @@
     </div>
 </div>
 
-<div class="row mt-4">
-    <div class="col-md-6 col-lg-4 mb-3">
+<div class="row mt-4 justify-content-center">
+    <div class="col-md-6 col-lg-5 mb-3">
         <div class="card h-100">
-            <div class="card-body">
-                <h5 class="card-title">Import PCM Database</h5>
-                <p class="card-text">Import a new PCM database to use for generating start lists.</p>
-                <a href="{{ url_for('import_database') }}" class="btn btn-primary">Import Database</a>
+            <div class="card-body text-center">
+                <h5 class="card-title">Manage Databases</h5>
+                <p class="card-text">Import new PCM databases and view all imported databases with their races.</p>
+                <a href="{{ url_for('list_databases') }}" class="btn btn-primary btn-lg">Manage Databases</a>
             </div>
         </div>
     </div>
     
-    <div class="col-md-6 col-lg-4 mb-3">
+    <div class="col-md-6 col-lg-5 mb-3">
         <div class="card h-100">
-            <div class="card-body">
-                <h5 class="card-title">View Databases</h5>
-                <p class="card-text">View all imported PCM databases and their races.</p>
-                <a href="{{ url_for('list_databases') }}" class="btn btn-primary">View Databases</a>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-6 col-lg-4 mb-3">
-        <div class="card h-100">
-            <div class="card-body">
-                <h5 class="card-title">Generate Start List</h5>
-                <p class="card-text">Create a new start list for a specific race and year.</p>
-                <a href="{{ url_for('generate_start_list') }}" class="btn btn-primary">Generate Start List</a>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-6 col-lg-4 mb-3">
-        <div class="card h-100">
-            <div class="card-body">
-                <h5 class="card-title">View Start Lists</h5>
-                <p class="card-text">View all existing start lists that have been generated.</p>
-                <a href="{{ url_for('show_start_lists') }}" class="btn btn-primary">View Start Lists</a>
+            <div class="card-body text-center">
+                <h5 class="card-title">Manage Start Lists</h5>
+                <p class="card-text">Generate new start lists and view existing ones for your races.</p>
+                <a href="{{ url_for('show_start_lists') }}" class="btn btn-primary btn-lg">Manage Start Lists</a>
             </div>
         </div>
     </div>

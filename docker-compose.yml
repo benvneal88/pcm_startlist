@@ -21,7 +21,7 @@ services:
     ports:
       - "8080:5000"
     volumes:
-      - ./src/data:/app/src/data
+      - ./src/data:/PCMStartListApp/src/data
     depends_on:
       - postgres
     restart: unless-stopped

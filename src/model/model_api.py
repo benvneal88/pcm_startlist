@@ -200,7 +200,7 @@ class AppDatabase:
             '''))
 
             conn.execute(text(f'''
-                CREATE VIEW {TableName.PCM_DATABASE_VIEW.value} AS
+                CREATE OR REPLACE VIEW {TableName.PCM_DATABASE_VIEW.value} AS
                 SELECT d.id as pcm_database_id, r.race_id, r.race_name, t.team_id, t.team_name, c.cyclist_id, c.cyclist_first_name, c.cyclist_last_name
                 FROM {TableName.PCM_DATABASE.value} d
                     INNER JOIN {TableName.PCM_RACE.value} r ON d.id = r.pcm_database_id
@@ -209,14 +209,14 @@ class AppDatabase:
             '''))
 
             conn.execute(text(f'''
-                CREATE VIEW {TableName.START_LIST_VIEW.value} AS
+                CREATE OR REPLACE VIEW {TableName.START_LIST_VIEW.value} AS
                 SELECT d.id as pcm_database_id, d.pcm_database_name, d.pcm_version, r.year as race_year, r.pcm_race_id, r.name as race_name, t.pcm_team_id, t.team_name, c.pcm_cyclist_id, c.cyclist_name
                 FROM {TableName.PCM_DATABASE.value} d
                     INNER JOIN  {TableName.START_LIST_RACES.value} r ON d.id = r.pcm_database_id
                     INNER JOIN {TableName.TEAMS.value} t ON r.id = t.start_list_race_id
                     INNER JOIN {TableName.CYCLISTS.value} c ON t.id = c.team_id
             '''))
-        
+            conn.commit()
 
 
     def import_pcm_data(self, pcm_version, pcm_database_name):

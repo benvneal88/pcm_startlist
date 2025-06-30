@@ -3,7 +3,7 @@ import os
 from enum import Enum
 
 APP_PORT = 5000
-DATA_PATH = os.path.join("src", "data")
+DATA_PATH = os.path.join(os.getcwd(), "data")
 PCM_DATABASE_PATH = os.path.join(DATA_PATH, "dbs", "pcm")
 START_LIST_OUTPUT_PATH = os.path.join(DATA_PATH, "output")
 START_LIST_INPUT_PATH = os.path.join(DATA_PATH, "input", "startlists")

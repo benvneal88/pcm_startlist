@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}Generate Start List{% endblock %}
+
+{% block content %}
+<h1>Generate Start List</h1>
+<p class="lead">Create a new start list by combining PCM database data with real-world race data.</p>
+
+<div class="row">
+    <div class="col-md-8">
+        <form method="POST" id="generateStartListForm">
+            <div class="mb-3">
+                <label for="database_select" class="form-label">PCM Database</label>
+                <select class="form-select" id="database_select" name="database_id" required>
+                    <option value="">Select a PCM database</option>
+                    {% for db in databases %}
+                    <option value="{{ db.id }}" data-version="{{ db.pcm_version }}">
+                        {{ db.pcm_database_name }} (PCM {{ db.pcm_version }})
+                    </option>
+                    {% endfor %}
+                </select>
+                <div class="form-text">Choose the PCM database containing the teams and cyclists</div>
+            </div>
+
+            <div class="mb-3">
+                <label for="race_select" class="form-label">Race</label>
+                <select class="form-select" id="race_select" name="race_id" required disabled>
+                    <option value="">Select a database first</option>
+                </select>
+                <div class="form-text">Choose the race from the PCM database</div>
+                <div id="loading_races" class="loading">
+                    <div class="spinner-border spinner-border-sm" role="status">
+                        <span class="visually-hidden">Loading races...</span>
+                    </div>
+                    Loading races...
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="race_year" class="form-label">Race Year</label>
+                <input type="number" class="form-control" id="race_year" name="race_year" 
+                       min="2020" max="2030" value="2024" required>
+                <div class="form-text">Enter the year for the real-world race data</div>
+            </div>
+
+            <div class="mb-3">
+                <label for="start_list_url" class="form-label">Start List URL (Optional)</label>
+                <input type="url" class="form-control" id="start_list_url" name="start_list_url">
+                <div class="form-text">Leave empty to auto-detect the start list URL</div>
+            </div>
+
+            <div class="mb-3 form-check">
+                <input type="checkbox" class="form-check-input" id="force_refresh" name="force_refresh">
+                <label class="form-check-label" for="force_refresh">
+                    Force refresh start list data
+                </label>
+                <div class="form-text">Check this to download fresh data even if cached data exists</div>
+            </div>
+
+            <div class="d-grid gap-2 d-md-flex">
+                <button type="submit" class="btn btn-primary" id="generateBtn">
+                    <span class="spinner-border spinner-border-sm d-none" role="status"></span>
+                    Generate Start List
+                </button>
+                <a href="{{ url_for('show_start_lists') }}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>How it works</h5>
+            </div>
+            <div class="card-body">
+                <ol>
+                    <li>Select a PCM database containing teams and cyclists</li>
+                    <li>Choose a race from that database</li>
+                    <li>Specify the year for real-world race data</li>
+                    <li>The system will:
+                        <ul>
+                            <li>Download the real start list</li>
+                            <li>Match riders to PCM cyclists</li>
+                            <li>Generate the final start list</li>
+                        </ul>
+                    </li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5>Tips</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li>🔍 Make sure the race name matches between PCM and real-world data</li>
+                    <li>📅 Use the correct year for accurate team rosters</li>
+                    <li>🔄 Use force refresh if you need updated data</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

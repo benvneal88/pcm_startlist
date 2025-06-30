@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Start Lists{% endblock %}
+
+{% block content %}
+<!-- Generate Start List Section -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h3 class="mb-0">Generate New Start List</h3>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-8">
+                <form method="POST" id="generateStartListForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="database_select" class="form-label">PCM Database</label>
+                                <select class="form-select" id="database_select" name="database_id" required>
+                                    <option value="">Select a PCM database</option>
+                                    {% for db in databases %}
+                                    <option value="{{ db.id }}" data-version="{{ db.pcm_version }}">
+                                        {{ db.pcm_database_name }} (PCM {{ db.pcm_version }})
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="race_select" class="form-label">Race</label>
+                                <select class="form-select" id="race_select" name="race_id" required disabled>
+                                    <option value="">Select a database first</option>
+                                </select>
+                                <div id="loading_races" class="loading">
+                                    <div class="spinner-border spinner-border-sm" role="status"></div>
+                                    Loading races...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="race_year" class="form-label">Race Year</label>
+                                <input type="number" class="form-control" id="race_year" name="race_year" 
+                                       min="2020" max="2030" value="2024" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3 form-check mt-4">
+                                <input type="checkbox" class="form-check-input" id="force_refresh" name="force_refresh">
+                                <label class="form-check-label" for="force_refresh">
+                                    Force refresh start list data
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary" id="generateBtn">
+                        <span class="spinner-border spinner-border-sm d-none" role="status"></span>
+                        Generate Start List
+                    </button>
+                </form>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h6>How it works</h6>
+                    </div>
+                    <div class="card-body">
+                        <ol class="small">
+                            <li>Select PCM database and race</li>
+                            <li>Enter the race year</li>
+                            <li>System downloads real start list</li>
+                            <li>Matches riders to PCM cyclists</li>
+                            <li>Generates final start list</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Generated Start Lists Section -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="mb-0">Generated Start Lists</h3>
+    </div>
+    <div class="card-body">
+        <!-- Filter Form -->
+        <div class="row mb-3">
+            <div class="col-md-12">
+                <form method="GET" class="row g-3">
+                    <div class="col-md-4">
+                        <label for="pcm_version" class="form-label">PCM Version</label>
+                        <select class="form-select" id="pcm_version" name="pcm_version">
+                            <option value="">All Versions</option>
+                            {% for version in pcm_versions %}
+                            <option value="{{ version }}" {% if selected_version == version %}selected{% endif %}>{{ version }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="pcm_database_name" class="form-label">Database</label>
+                        <select class="form-select" id="pcm_database_name" name="pcm_database_name">
+                            <option value="">All Databases</option>
+                            {% for db in databases %}
+                            <option value="{{ db.pcm_database_name }}" {% if selected_database == db.pcm_database_name %}selected{% endif %}>
+                                {{ db.pcm_database_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary me-2">Filter</button>
+                        <a href="{{ url_for('show_start_lists') }}" class="btn btn-outline-secondary">Clear</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Start Lists Table -->
+        {% if start_lists %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Database</th>
+                        <th>PCM Version</th>
+                        <th>Race Name</th>
+                        <th>Race Year</th>
+                        <th>Cyclists Count</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for start_list in start_lists %}
+                    <tr>
+                        <td>{{ start_list.pcm_database_name }}</td>
+                        <td>{{ start_list.pcm_version }}</td>
+                        <td>{{ start_list.race_name }}</td>
+                        <td>{{ start_list.race_year }}</td>
+                        <td>{{ start_list['count(*)'] }}</td>
+                        <td>
+                            <div class="btn-group-actions">
+                                <button class="btn btn-sm btn-info" onclick="viewStartList({{ start_list.pcm_database_id }}, '{{ start_list.race_name }}', {{ start_list.race_year }})">
+                                    View Details
+                                </button>
+                                <button class="btn btn-sm btn-success" onclick="exportStartList({{ start_list.pcm_database_id }}, '{{ start_list.race_name }}', {{ start_list.race_year }})">
+                                    Export
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            <h5>No start lists found</h5>
+            <p>Use the form above to generate your first start list.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Start List Details Modal -->
+<div class="modal fade" id="startListModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Start List Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="startListContent">
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
