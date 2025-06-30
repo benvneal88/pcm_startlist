@@ -14,7 +14,7 @@ from utils import commons
 logger = logger_helper.get_logger(__name__)
 
 
-def generate_xml_start_list(df, pcm_version, pcm_database_name, race_year, out_file):
+def generate_xml_start_list(df):
     # Create the root element
     startlist = ET.Element('startlist')
 
@@ -37,12 +37,7 @@ def generate_xml_start_list(df, pcm_version, pcm_database_name, race_year, out_f
     xml_dom = minidom.parseString(xml_str)
     pretty_xml_str = xml_dom.toprettyxml(indent='    ')
 
-    out_path = os.path.join(commons.START_LIST_OUTPUT_PATH, pcm_version, pcm_database_name, str(race_year), out_file) 
-    os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    with open(out_path, "w") as f:
-        f.write(pretty_xml_str)
-
-    logger.info(f"🎉 Created XML Start List at {out_path}")
+    return pretty_xml_str
 
 
 

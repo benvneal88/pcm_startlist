@@ -4,7 +4,7 @@ import os
 from pcm import pcm_api
 from model import model_api
 from scrapers import scraper_api
-from utils import logger_helper
+from utils import logger_helper, commons
 
 logger = logger_helper.get_logger(__name__)
 
@@ -17,6 +17,16 @@ class AppAPI():
     def close(self):
         """Close the app instance"""
         self.app_model.close()
+
+    def get_start_list_raw_file_path(self, pcm_version, pcm_database_name, race_year, pcm_start_list_file_name):
+        """Retrieves the file path for the raw start list
+
+        :param pcm_database_id: The ID of the imported PCM database to use
+        :param pcm_race_id: The ID of the PCM race to generate the start list for
+        :param race_year: The year/edition of the race for fetching the start list
+        :return: The file path of the raw start list
+        """
+        return os.path.join(commons.START_LIST_OUTPUT_PATH, pcm_version, pcm_database_name, str(race_year), f"{pcm_start_list_file_name}.xml") 
 
     def generate_start_list(
             self,
@@ -57,12 +67,16 @@ class AppAPI():
             logger.info(f"Found existing start list for '{start_list_race_name}' and year ({race_year})")
 
         pcm_database_name, pcm_version = self.app_model.get_pcm_database_details(pcm_database_id)
-        self.app_model.close()
         
-        pcm_api.generate_xml_start_list(df, pcm_version, pcm_database_name, race_year, pcm_start_list_file_name)
-        
-        logger.info(f"Next step: copy generated file into your PCM game directory: '%AppData%\Roaming\Pro Cycling Manager {pcm_version}\Cloud\Startlists\'")
+        xml_data = pcm_api.get_xml_start_list(df)
+        out_path = self.get_start_list_raw_file_path(pcm_version, pcm_database_name, race_year, pcm_start_list_file_name)
+        os.makedirs(os.path.dirname(out_path), exist_ok=True)
+        with open(out_path, "w") as f:
+            f.write(xml_data)
 
+        logger.info(f"🎉 Created XML Start List at {out_path}")
+        pcm_year = pcm_version.replace("PCM_","")
+        logger.info(f"Next step: copy generated file into your PCM game directory: '%AppData%\Roaming\Pro Cycling Manager {pcm_year}\Cloud\Startlists\'")
 
     def import_pcm_database(self, pcm_version, pcm_database_name):
         """Loads the PCM database into the app instance
@@ -72,7 +86,6 @@ class AppAPI():
         """
 
         self.app_model.import_pcm_data(pcm_version, pcm_database_name)
-
 
     def get_pcm_database(self, pcm_database_id):
         """Retrieves PCM databases that have been loaded

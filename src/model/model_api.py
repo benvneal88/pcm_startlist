@@ -210,14 +210,13 @@ class AppDatabase:
 
             conn.execute(text(f'''
                 CREATE OR REPLACE VIEW {TableName.START_LIST_VIEW.value} AS
-                SELECT d.id as pcm_database_id, d.pcm_database_name, d.pcm_version, r.year as race_year, r.pcm_race_id, r.name as race_name, t.pcm_team_id, t.team_name, c.pcm_cyclist_id, c.cyclist_name
+                SELECT d.id as pcm_database_id, d.pcm_database_name, d.pcm_version, r.id as start_list_race_id, r.year as race_year, r.pcm_race_id, r.name as race_name, t.pcm_team_id, t.team_name, c.pcm_cyclist_id, c.cyclist_name
                 FROM {TableName.PCM_DATABASE.value} d
                     INNER JOIN  {TableName.START_LIST_RACES.value} r ON d.id = r.pcm_database_id
                     INNER JOIN {TableName.TEAMS.value} t ON r.id = t.start_list_race_id
                     INNER JOIN {TableName.CYCLISTS.value} c ON t.id = c.team_id
             '''))
             conn.commit()
-
 
     def import_pcm_data(self, pcm_version, pcm_database_name):
         """Fetches and stages the data from the PCM database.
@@ -266,15 +265,6 @@ class AppDatabase:
                 if_exists="append",
                 index=False
             )
-
-    def get_start_list_data(self, pcm_database_id, pcm_race_id, race_year):
-        query = f"""
-            SELECT *
-            FROM {TableName.START_LIST_VIEW.value}
-            WHERE pcm_database_id = {pcm_database_id} AND pcm_race_id = {pcm_race_id} AND race_year = {race_year}
-        """
-        logger.debug(query)
-        return pd.read_sql_query(query, self.connection)
 
     def download_and_stage_start_list(self, race_year, start_list_race_name, start_list_url=None, fetch_from_web=False):
         """Downloads the start list from the web and inserts it into the database."""
@@ -531,13 +521,13 @@ class AppDatabase:
             filter += f" pcm_race_id = {pcm_race_id}"
         
         query = f"""
-            SELECT pcm_database_id, pcm_version, pcm_database_name, race_name, race_year, COUNT(*) as race_count
+            SELECT pcm_database_id, pcm_version, pcm_database_name, start_list_race_id, race_name, race_year, COUNT(*) as cyclists_count
             FROM {TableName.START_LIST_VIEW.value} 
             {filter} 
-            GROUP BY pcm_database_id, pcm_version, pcm_database_name, race_name, race_year 
+            GROUP BY pcm_database_id, pcm_version, pcm_database_name, start_list_race_id, race_name, race_year 
             ORDER BY pcm_database_name DESC, race_year DESC
         """
-        
+        logger.info(f"")
         df = pd.read_sql_query(query, self.connection)
         return df
 
@@ -561,3 +551,12 @@ class AppDatabase:
         
         pcm_database_id = df['pcm_database_id'].iloc[0] if not df.empty else None
         return pcm_database_id
+
+    def get_start_list_data(self, pcm_database_id, pcm_race_id, race_year):
+        query = f"""
+            SELECT *
+            FROM {TableName.START_LIST_VIEW.value}
+            WHERE pcm_database_id = {pcm_database_id} AND pcm_race_id = {pcm_race_id} AND race_year = {race_year}
+        """
+        logger.debug(query)
+        return pd.read_sql_query(query, self.connection)
