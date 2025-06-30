@@ -12,10 +12,82 @@ app.secret_key = 'your-secret-key-here'  # Change this in production
 
 api = AppAPI()
 
-@app.route('/')
+@app.route('/', methods=['GET', 'POST'])
 def index():
-    """Home page with navigation to all features"""
-    return render_template('index.html')
+    """Simplified step-by-step homepage"""
+    pcm_database_id = request.args.get('pcm_database_id', type=int)
+    pcm_race_id = request.args.get('pcm_race_id', type=int)
+    race_filter = request.args.get('race_filter', '')
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    
+    if request.method == 'POST':
+        # Handle start list generation
+        pcm_database_id = request.form.get('pcm_database_id', type=int)
+        pcm_race_id = request.form.get('pcm_race_id', type=int)
+        race_year = request.form.get('race_year')
+        force_refresh = request.form.get('force_refresh') == 'on'
+        
+        try:
+            # Call your start list generation logic here
+            flash(f"Start list generation initiated for race {pcm_race_id} in year {race_year}", 'success')
+            return redirect(url_for('index', pcm_database_id=pcm_database_id, pcm_race_id=pcm_race_id))
+        except Exception as e:
+            logger.error(f"Error generating start list: {str(e)}")
+            flash(f"Error generating start list: {str(e)}", 'error')
+    
+    try:
+        # Get all databases
+        databases = api.get_pcm_databases()
+        
+        selected_database = None
+        selected_race = None
+        races = []
+        total_races = 0
+        total_pages = 0
+        existing_start_lists = []
+        
+        # Step 1: Get selected database
+        if pcm_database_id:
+            selected_database = api.get_pcm_database(pcm_database_id)
+        
+        # Step 2: Get races with pagination
+        if selected_database:
+            all_races = api.get_pcm_races(pcm_database_id, race_filter if race_filter else None)
+            total_races = len(all_races)
+            total_pages = (total_races + per_page - 1) // per_page
+            
+            # Paginate races
+            start_idx = (page - 1) * per_page
+            end_idx = start_idx + per_page
+            races = all_races[start_idx:end_idx]
+            
+            # Get selected race
+            if pcm_race_id:
+                selected_race = api.get_pcm_race(pcm_database_id, pcm_race_id)
+
+        # Step 3: Get existing start lists for selected race
+        if selected_database:
+            existing_start_lists = api.get_start_lists(pcm_database_id, pcm_race_id)
+        
+        return render_template('index.html',
+                             databases=databases,
+                             selected_database=selected_database,
+                             selected_race=selected_race,
+                             races=races,
+                             total_races=total_races,
+                             total_pages=total_pages,
+                             page=page,
+                             race_filter=race_filter,
+                             existing_start_lists=existing_start_lists,
+                             pcm_versions=commons.PCM_VERSIONS)
+    
+    except Exception as e:
+        logger.error(f"Error loading homepage: {str(e)}")
+        flash(f"Error loading data: {str(e)}", 'error')
+        return render_template('index.html',
+                             databases=[],
+                             pcm_versions=commons.PCM_VERSIONS)
 
 @app.route('/databases', methods=['GET', 'POST'])
 def list_databases():
@@ -89,13 +161,8 @@ def show_races(pcm_database_id):
     
     try:
         # Get database info
-        databases = api.get_pcm_databases()
-        selected_database = None
-        for db_row in databases:
-            if db_row['pcm_database_id'] == pcm_database_id:
-                selected_database = db_row
-                break
-        
+        selected_database = api.get_pcm_database(pcm_database_id=pcm_database_id)
+
         if not selected_database:
             flash(f"Database with ID {pcm_database_id} not found", 'error')
             return redirect(url_for('list_databases'))
@@ -147,12 +214,8 @@ def start_lists():
     try:
         if pcm_database_id and pcm_race_id:
             # Get database info
-            databases = api.get_pcm_databases()
-            for db_row in databases:
-                if db_row['pcm_database_id'] == pcm_database_id:
-                    selected_database = db_row
-                    break
-            
+            selected_database = api.get_pcm_database(pcm_database_id=pcm_database_id)
+
             # Get race info
             if selected_database:
                 selected_race = api.get_pcm_race(pcm_database_id, pcm_race_id)[0]

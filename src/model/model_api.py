@@ -469,6 +469,15 @@ class AppDatabase:
 
         logger.info(f"Inserted {len(cyclists_df)} cyclists into the table '{TableName.CYCLISTS.value}'")
 
+    def get_pcm_database(self, pcm_database_id):
+        """Returns a DataFrame with all PCM databases."""
+        query = f"SELECT id as pcm_database_id, pcm_database_name, pcm_version, created_at FROM {TableName.PCM_DATABASE.value} WHERE id = {pcm_database_id}"
+        df = pd.read_sql_query(query, self.connection)
+        if df.empty:
+            logger.error(f"🚨 Could not find PCM database with pcm_database_id={pcm_database_id}")
+            return None
+        return df
+
     def get_pcm_databases(self, pcm_version=None):
         filter = ""
         if pcm_version:
@@ -492,7 +501,7 @@ class AppDatabase:
         return df['pcm_database_name'].iloc[0], df['pcm_version'].iloc[0] 
 
     def get_pcm_race(self, pcm_database_id, pcm_race_id):
-        filter_clause = f" WHERE pcm_database_id = {pcm_database_id} AND pcm_race_id = {pcm_race_id}"
+        filter_clause = f" WHERE pcm_database_id = {pcm_database_id} AND race_id = {pcm_race_id}"
         query = f"SELECT pcm_database_id, race_id as pcm_race_id, race_name, race_abbrreviation, file_name FROM {TableName.PCM_RACE.value} {filter_clause} ORDER BY race_name"
         logger.info(f"Fetching PCM race with query {query}")
         df = pd.read_sql_query(query, self.connection)

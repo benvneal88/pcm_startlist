@@ -1,32 +1,320 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="row">
-    <div class="col-md-12">
-        <h1>PCM Start List Generator</h1>
-        <p class="lead">Generate start lists for Pro Cycling Manager races by combining PCM database data with real-world race start lists.</p>
+<div class="container">
+    <div class="row">
+        <div class="col-md-12">
+            <h1>PCM - Start List Generator</h1>
+            <p class="lead">Follow the steps below to generate start lists for PCM races.</p>
+        </div>
+    </div>
+
+    <!-- Step 1: Select Database -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="mb-0">
+                Step 1: Select PCM Database
+                {% if selected_database %}
+                <span class="badge bg-success">✓ Complete</span>
+                {% endif %}
+            </h3>
+        </div>
+        <div class="card-body">
+            {% if selected_database %}
+            <!-- Database Selected - Show persistent properties -->
+            <div class="row">
+                <div class="col-md-3">
+                    <strong>Database ID:</strong> {{ selected_database.pcm_database_id }}
+                </div>
+                <div class="col-md-3">
+                    <strong>Database Name:</strong> {{ selected_database.pcm_database_name }}
+                </div>
+                <div class="col-md-3">
+                    <strong>PCM Version:</strong> {{ selected_database.pcm_version }}
+                </div>
+                <div class="col-md-3">
+                    <strong>Imported:</strong> {{ selected_database.created_at }}
+                </div>
+            </div>
+            <div class="mt-3">
+                <a href="{{ url_for('index') }}" class="btn btn-outline-secondary btn-sm">Change Database</a>
+            </div>
+            {% else %}
+            <!-- Database Selection -->
+            <div class="row">
+                <div class="col-md-8">
+                    <!-- Filter by PCM Version -->
+                    <div class="mb-3">
+                        <label for="pcm_version_filter" class="form-label">Filter by PCM Version</label>
+                        <select class="form-select" id="pcm_version_filter">
+                            <option value="">All Versions</option>
+                            {% for version in pcm_versions %}
+                            <option value="{{ version }}" {% if selected_version == version %}selected{% endif %}>{{ version }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <!-- Database List -->
+                    {% if databases %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Database Name</th>
+                                    <th>PCM Version</th>
+                                    <th>Imported</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="database-list">
+                                {% for db in databases %}
+                                <tr data-version="{{ db.pcm_version }}">
+                                    <td>{{ db.pcm_database_name }}</td>
+                                    <td>{{ db.pcm_version }}</td>
+                                    <td>{{ db.created_at }}</td>
+                                    <td>
+                                        <a href="{{ url_for('index', pcm_database_id=db.pcm_database_id) }}" class="btn btn-sm btn-primary">Select</a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <p>No databases found. Import your first database to get started.</p>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6>Import New Database</h6>
+                        </div>
+                        <div class="card-body">
+                            <p>Don't see your database? Import a new one.</p>
+                            <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#importModal">Import Database</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if selected_database %}
+    <!-- Step 2: Select Race -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="mb-0">
+                Step 2: Select Race
+                {% if selected_race %}
+                <span class="badge bg-success">✓ Complete</span>
+                {% endif %}
+            </h3>
+        </div>
+        <div class="card-body">
+            {% if selected_race %}
+            <!-- Race Selected - Show persistent properties -->
+            <div class="row">
+                <div class="col-md-4">
+                    <strong>Race ID:</strong> {{ selected_race.race_id }}
+                </div>
+                <div class="col-md-4">
+                    <strong>Race Name:</strong> {{ selected_race.race_name }}
+                </div>
+                <div class="col-md-4">
+                    <strong>Abbreviation:</strong> {{ selected_race.race_abbrreviation }}
+                </div>
+            </div>
+            <div class="mt-3">
+                <a href="{{ url_for('index', pcm_database_id=selected_database.pcm_database_id) }}" class="btn btn-outline-secondary btn-sm">Change Race</a>
+            </div>
+            {% else %}
+            <!-- Race Selection -->
+            <div class="mb-3">
+                <form method="GET">
+                    <input type="hidden" name="pcm_database_id" value="{{ selected_database.pcm_database_id }}">
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label for="race_filter" class="form-label">Filter by Race Name</label>
+                            <input type="text" class="form-control" id="race_filter" name="race_filter" 
+                                   value="{{ race_filter }}" placeholder="Enter race name to filter">
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary me-2">Search</button>
+                            {% if race_filter %}
+                            <a href="{{ url_for('index', pcm_database_id=selected_database.pcm_database_id) }}" class="btn btn-outline-secondary">Clear</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
+            {% if races %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Race Name</th>
+                            <th>Abbreviation</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for race in races %}
+                        <tr>
+                            <td>{{ race.race_name }}</td>
+                            <td>{{ race.race_abbrreviation }}</td>
+                            <td>
+                                <a href="{{ url_for('index', pcm_database_id=selected_database.pcm_database_id, pcm_race_id=race.pcm_race_id) }}" 
+                                   class="btn btn-sm btn-primary">Select</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            {% if total_races > 20 %}
+            <nav>
+                <ul class="pagination justify-content-center">
+                    {% if page > 1 %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('index', pcm_database_id=selected_database.pcm_database_id, race_filter=race_filter, page=page-1) }}">Previous</a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for p in range(1, total_pages + 1) %}
+                    <li class="page-item {% if p == page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('index', pcm_database_id=selected_database.pcm_database_id, race_filter=race_filter, page=p) }}">{{ p }}</a>
+                    </li>
+                    {% endfor %}
+                    
+                    {% if page < total_pages %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('index', pcm_database_id=selected_database.pcm_database_id, race_filter=race_filter, page=page+1) }}">Next</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+            
+            <p class="text-muted">Showing {{ races|length }} of {{ total_races }} races</p>
+            {% else %}
+            <div class="alert alert-info">
+                No races found {% if race_filter %}matching "{{ race_filter }}"{% endif %}.
+            </div>
+            {% endif %}
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if selected_database and selected_race %}
+    <!-- Step 3: Generate Start List -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="mb-0">Step 3: Generate Start List</h3>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <form method="POST">
+                        <input type="hidden" name="pcm_database_id" value="{{ selected_database.pcm_database_id }}">
+                        <input type="hidden" name="pcm_race_id" value="{{ selected_race.race_id }}">
+                        
+                        <div class="mb-3">
+                            <label for="race_year" class="form-label">Race Year</label>
+                            <input type="number" class="form-control" id="race_year" name="race_year" 
+                                   min="2020" max="2030" value="2024" required>
+                        </div>
+                        
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="force_refresh" name="force_refresh">
+                            <label class="form-check-label" for="force_refresh">
+                                Force refresh start list data
+                            </label>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-success">Generate Start List</button>
+                    </form>
+                </div>
+                <div class="col-md-6">
+                    <!-- Existing Start Lists -->
+                    <h6>Existing Start Lists for This Race</h6>
+                    {% if existing_start_lists %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Year</th>
+                                    <th>Cyclists</th>
+                                    <th>Generated</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for start_list in existing_start_lists %}
+                                <tr>
+                                    <td>{{ start_list.race_year }}</td>
+                                    <td>{{ start_list.cyclist_count }}</td>
+                                    <td>{{ start_list.created_at }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary" onclick="viewStartList({{ start_list.id }})">View</button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <small>No start lists generated for this race yet.</small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Import Database Modal -->
+<div class="modal fade" id="importModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Import PCM Database</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- ...existing code from databases.html import form... -->
+            </div>
+        </div>
     </div>
 </div>
 
-<div class="row mt-4 justify-content-center">
-    <div class="col-md-4 mb-3">
-        <div class="card h-100">
-            <div class="card-body text-center">
-                <h5 class="card-title">Manage Databases</h5>
-                <p class="card-text">Import new PCM databases and view all imported databases with their races.</p>
-                <a href="{{ url_for('list_databases') }}" class="btn btn-primary btn-lg">Manage Databases</a>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-4 mb-3">
-        <div class="card h-100">
-            <div class="card-body text-center">
-                <h5 class="card-title">Manage Start Lists</h5>
-                <p class="card-text">Generate new start lists and view existing ones for your races.</p>
-                <a href="{{ url_for('start_lists') }}" class="btn btn-primary btn-lg">Manage Start Lists</a>
-            </div>
-        </div>
-    </div>
-</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // PCM Version Filter
+    const versionFilter = document.getElementById('pcm_version_filter');
+    if (versionFilter) {
+        versionFilter.addEventListener('change', function() {
+            const selectedVersion = this.value;
+            const rows = document.querySelectorAll('#database-list tr');
+            
+            rows.forEach(row => {
+                const version = row.dataset.version;
+                if (!selectedVersion || version === selectedVersion) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+    }
+});
+</script>
 {% endblock %}

@@ -74,6 +74,17 @@ class AppAPI():
         self.app_model.import_pcm_data(pcm_version, pcm_database_name)
 
 
+    def get_pcm_database(self, pcm_database_id):
+        """Retrieves PCM databases that have been loaded
+
+        :return:
+        """
+
+        df = self.app_model.get_pcm_database(pcm_database_id)
+        if df.empty:
+            return None
+        return df.to_dict(orient='records')[0]
+
     def get_pcm_databases(self, pcm_version=None):
         """Retrieves PCM databases that have been loaded
 
@@ -83,6 +94,16 @@ class AppAPI():
         if df.empty:
             return []
         return df.to_dict(orient='records')
+    
+
+    def get_pcm_race(self, pcm_database_id, pcm_race_id):
+        """Retrieves PCM races
+        :return:
+        """
+        df = self.app_model.get_pcm_race(pcm_database_id, pcm_race_id)
+        if df.empty:
+            return None
+        return df.to_dict(orient='records')[0]
 
 
     def get_pcm_races(self, pcm_database_id, race_name=None):
