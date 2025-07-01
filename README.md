@@ -30,51 +30,11 @@ pcm_startlist/
 
 ## Prerequisites
 
-1. Clone this repository.
-2. Ensure you have Python installed on your machine.
-3. Install the required dependencies listed in `requirements.txt`.
+1. Clone this repository
+2. Install and configured Docker
+3. Setup the .env file 
+4. Launch the web app with docker-compose
 
-## Usage
-
-This will eventually be pushed to a web app with some basic controls:
-- Load a new PCM database
-- View existing start lists
-- Generate new start lists
-
-
-To generate a start list, you can use the command-line interface. Here are some example commands:
-
-CLI Usage
-
-### Generate a Start List
-
-```sh
-python src/cli.py generate_start_list --pcm_database_name <DB_NAME> --race_name <RACE_NAME> --race_year <YEAR> [--pcm_race_name <PCM_RACE_NAME>]
-```
-
-### Load a PCM Database
-
-```sh
-python src/cli.py load_pcm_database --pcm_database_name <DB_NAME> [--pcm_version <VERSION>]
-```
-
-### Show Loaded PCM Databases
-
-```sh
-python3 src/cli.py show_pcm_databases [--pcm_version <VERSION>]
-```
-
-### Show Generated Start Lists
-
-```sh
-python src/cli.py show_start_lists [--pcm_version <VERSION>] [--pcm_database_name <DB_NAME>]
-```
-
-### Show PCM Races
-
-```sh
-python src/cli.py show_pcm_races --database_id <ID> --race_name <RACE_NAME>
-```
 
 ## How it Works
 
@@ -86,69 +46,32 @@ Generating start lists requires three tables from the PCM database:
 
 ## PreLoaded PCM Databases
 
-The default application comes already loaded with a set of databases and startlists
+The default application comes setip with a set of databases and startlists
 
 Check data/output/startlists/* for a list of startlists preloaded
 Check data/dbs/pcm/* for a list of PCM database preloaded
 
 ## Add PCM Database
 
-To add your own PCM database, first export it to a  SQLite file with these steps
+To add a custom PCM database, first export it to a SQLite file with these steps
 
 1. Download `SQLiteExporter.exe`.
 2. Open a command prompt and navigate to the folder containing `SQLiteExporter.exe`.
 3. Run the following command to export your `.cdb` file:
 
 ```bash
-SQLiteExporter.exe -export "Pro Cycling Manager 2024\Cloud\<your_username>\Career_1.cdb"
+SQLiteExporter.exe -export "Pro Cycling Manager <edition>\Cloud\<your_username>\Career_1.cdb"
 ```
 
 4. Move the generated `.sqlite` file to the `src/data/pcm_dbs` directory and rename it to match the `pcm_database_name`.
 
 ## Running with Docker
 
-1. **Build the Docker image:**
-   ```sh
-   docker build -t pcm-startlist .
-   ```
-
-2. **Run the application:**
-   ```sh
-   docker run --rm -it pcm-startlist src/cli.py [command] [options]
-   ```
-
-3. **Development mode with volume mounting:**
-   When developing, you can mount your local `src/` directory to avoid rebuilding the image after code changes:
-   ```sh
-   docker run --rm -it -v "$(pwd)/src:/app/src" pcm-startlist src/cli.py [command] [options]
-
-   docker run --rm -it -v "$(pwd)/src:/app/src" pcm-startlist
-   ```
-```
-   # Quick start with Docker Compose
-   docker-compose up --build
-
-   # Access the web interface
-   open http://localhost:5000
+1. Quick start with Docker Compose docker-compose up --build
+2. Access the web app http://localhost:8080
 ```
 
-### CLI Examples
-```
-   # Show existing start lists
-   python3 src/cli.py show_start_lists
 
-   # Load a PCM database
-   python3 src/cli.py import_pcm_database --pcm_database_name "WORLDDB_2024" --pcm_version "PCM_2025"
-
-   # Show PCM databases
-   python3 src/cli.py show_pcm_databases
-
-   # Show PCM races
-   python src/cli.py show_pcm_races --pcm_database_id 1 --race_name "Tour de France"
-
-   # Generate a start list
-   python3 src/cli.py generate_start_list --pcm_database_id 1 --pcm_race_id 25 --race_year 2024
-```
 
 ## Contributing
 

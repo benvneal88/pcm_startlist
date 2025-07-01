@@ -458,6 +458,7 @@ class AppDatabase:
         )
 
         logger.info(f"Inserted {len(cyclists_df)} cyclists into the table '{TableName.CYCLISTS.value}'")
+        return start_list_race_id
 
     def get_pcm_database(self, pcm_database_id):
         """Returns a DataFrame with all PCM databases."""
@@ -536,7 +537,7 @@ class AppDatabase:
         if results is None or len(results) == 0:
             logger.error(f"🚨 Could not find PCM start list file for pcm_database_id={pcm_database_id} and race_id={pcm_race_id}")
             return None
-        file_name = f"{results[0]['file_name']}.xml"
+        file_name = f"{results[0]['file_name']}"
         race_name = results[0]['race_name']
         return file_name, race_name
 
@@ -552,11 +553,21 @@ class AppDatabase:
         pcm_database_id = df['pcm_database_id'].iloc[0] if not df.empty else None
         return pcm_database_id
 
-    def get_start_list_data(self, pcm_database_id, pcm_race_id, race_year):
+    def get_start_list_data(self, start_list_race_id):
         query = f"""
             SELECT *
             FROM {TableName.START_LIST_VIEW.value}
-            WHERE pcm_database_id = {pcm_database_id} AND pcm_race_id = {pcm_race_id} AND race_year = {race_year}
+            WHERE start_list_race_id = {start_list_race_id}
         """
         logger.debug(query)
         return pd.read_sql_query(query, self.connection)
+
+    def get_start_list_details(self, start_list_race_id):
+        query = f"""
+            SELECT pcm_database_id, pcm_race_id, pcm_version, race_year
+            FROM {TableName.START_LIST_VIEW.value}
+            WHERE start_list_race_id = {start_list_race_id}
+        """
+        logger.debug(query)
+        return pd.read_sql_query(query, self.connection)
+    

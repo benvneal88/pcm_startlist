@@ -1,0 +1,232 @@
+<?xml version="1.0" ?>
+<startlist>
+    <team id="1">
+        <cyclist id="4839"/>
+        <cyclist id="5955"/>
+        <cyclist id="1975"/>
+        <cyclist id="7064"/>
+        <cyclist id="15283"/>
+        <cyclist id="3197"/>
+        <cyclist id="3932"/>
+        <cyclist id="5106"/>
+    </team>
+    <team id="2">
+        <cyclist id="1981"/>
+        <cyclist id="7091"/>
+        <cyclist id="5943"/>
+        <cyclist id="1074"/>
+        <cyclist id="6569"/>
+        <cyclist id="5304"/>
+        <cyclist id="6181"/>
+    </team>
+    <team id="3">
+        <cyclist id="3957"/>
+        <cyclist id="6609"/>
+        <cyclist id="7422"/>
+        <cyclist id="6028"/>
+        <cyclist id="3779"/>
+        <cyclist id="6688"/>
+        <cyclist id="6326"/>
+        <cyclist id="14405"/>
+    </team>
+    <team id="5">
+        <cyclist id="6838"/>
+        <cyclist id="5793"/>
+        <cyclist id="13438"/>
+        <cyclist id="5750"/>
+        <cyclist id="6457"/>
+        <cyclist id="7384"/>
+        <cyclist id="2505"/>
+        <cyclist id="5981"/>
+    </team>
+    <team id="6">
+        <cyclist id="7278"/>
+        <cyclist id="6415"/>
+        <cyclist id="14395"/>
+        <cyclist id="4"/>
+        <cyclist id="5633"/>
+        <cyclist id="3981"/>
+        <cyclist id="7285"/>
+        <cyclist id="6380"/>
+    </team>
+    <team id="9">
+        <cyclist id="15205"/>
+        <cyclist id="7382"/>
+        <cyclist id="3123"/>
+        <cyclist id="15328"/>
+        <cyclist id="7190"/>
+        <cyclist id="3056"/>
+        <cyclist id="6314"/>
+        <cyclist id="6743"/>
+    </team>
+    <team id="10">
+        <cyclist id="6770"/>
+        <cyclist id="3048"/>
+        <cyclist id="6322"/>
+        <cyclist id="5979"/>
+        <cyclist id="7386"/>
+        <cyclist id="3257"/>
+        <cyclist id="3780"/>
+        <cyclist id="7092"/>
+    </team>
+    <team id="11">
+        <cyclist id="3445"/>
+        <cyclist id="13165"/>
+        <cyclist id="3388"/>
+        <cyclist id="5942"/>
+        <cyclist id="7406"/>
+        <cyclist id="7192"/>
+        <cyclist id="2346"/>
+        <cyclist id="7076"/>
+    </team>
+    <team id="12">
+        <cyclist id="5677"/>
+        <cyclist id="7054"/>
+        <cyclist id="6335"/>
+        <cyclist id="6056"/>
+        <cyclist id="3699"/>
+        <cyclist id="7465"/>
+        <cyclist id="3931"/>
+        <cyclist id="3902"/>
+    </team>
+    <team id="13">
+        <cyclist id="15354"/>
+        <cyclist id="7087"/>
+        <cyclist id="3360"/>
+        <cyclist id="3617"/>
+        <cyclist id="3883"/>
+        <cyclist id="3715"/>
+        <cyclist id="6773"/>
+        <cyclist id="7088"/>
+    </team>
+    <team id="14">
+        <cyclist id="6195"/>
+        <cyclist id="6295"/>
+        <cyclist id="3687"/>
+        <cyclist id="3442"/>
+        <cyclist id="7032"/>
+        <cyclist id="6253"/>
+        <cyclist id="5978"/>
+        <cyclist id="3368"/>
+    </team>
+    <team id="15">
+        <cyclist id="7494"/>
+        <cyclist id="8463"/>
+        <cyclist id="7025"/>
+        <cyclist id="3022"/>
+        <cyclist id="7523"/>
+        <cyclist id="7498"/>
+        <cyclist id="7495"/>
+        <cyclist id="6720"/>
+    </team>
+    <team id="16">
+        <cyclist id="6777"/>
+        <cyclist id="6088"/>
+        <cyclist id="6247"/>
+        <cyclist id="3628"/>
+        <cyclist id="6327"/>
+        <cyclist id="3700"/>
+        <cyclist id="3030"/>
+        <cyclist id="3367"/>
+    </team>
+    <team id="20">
+        <cyclist id="5663"/>
+        <cyclist id="14249"/>
+        <cyclist id="7193"/>
+        <cyclist id="2626"/>
+        <cyclist id="5789"/>
+        <cyclist id="2697"/>
+        <cyclist id="3024"/>
+        <cyclist id="3559"/>
+    </team>
+    <team id="24">
+        <cyclist id="7454"/>
+        <cyclist id="2544"/>
+        <cyclist id="3777"/>
+        <cyclist id="15145"/>
+        <cyclist id="5658"/>
+        <cyclist id="15454"/>
+        <cyclist id="15301"/>
+        <cyclist id="3406"/>
+    </team>
+    <team id="25">
+        <cyclist id="6350"/>
+        <cyclist id="6346"/>
+        <cyclist id="3713"/>
+        <cyclist id="4275"/>
+        <cyclist id="7421"/>
+        <cyclist id="5303"/>
+        <cyclist id="15345"/>
+        <cyclist id="15315"/>
+    </team>
+    <team id="33">
+        <cyclist id="3280"/>
+        <cyclist id="7224"/>
+        <cyclist id="6419"/>
+        <cyclist id="7547"/>
+        <cyclist id="7307"/>
+        <cyclist id="5001"/>
+        <cyclist id="3028"/>
+        <cyclist id="6570"/>
+    </team>
+    <team id="34">
+        <cyclist id="5984"/>
+        <cyclist id="3716"/>
+        <cyclist id="3060"/>
+        <cyclist id="1991"/>
+        <cyclist id="7082"/>
+        <cyclist id="3984"/>
+        <cyclist id="6188"/>
+        <cyclist id="3685"/>
+    </team>
+    <team id="37">
+        <cyclist id="6764"/>
+        <cyclist id="6324"/>
+        <cyclist id="6896"/>
+        <cyclist id="3444"/>
+        <cyclist id="15261"/>
+        <cyclist id="3803"/>
+        <cyclist id="3392"/>
+        <cyclist id="6766"/>
+    </team>
+    <team id="42">
+        <cyclist id="5939"/>
+        <cyclist id="9151"/>
+        <cyclist id="3357"/>
+        <cyclist id="3044"/>
+        <cyclist id="7287"/>
+        <cyclist id="2386"/>
+        <cyclist id="7100"/>
+        <cyclist id="5790"/>
+    </team>
+    <team id="65">
+        <cyclist id="7110"/>
+        <cyclist id="7284"/>
+        <cyclist id="7040"/>
+        <cyclist id="5798"/>
+        <cyclist id="7761"/>
+        <cyclist id="15204"/>
+        <cyclist id="6175"/>
+        <cyclist id="14188"/>
+    </team>
+    <team id="99">
+        <cyclist id="3011"/>
+        <cyclist id="6872"/>
+        <cyclist id="6692"/>
+        <cyclist id="13452"/>
+        <cyclist id="13451"/>
+        <cyclist id="6508"/>
+        <cyclist id="5804"/>
+        <cyclist id="15387"/>
+    </team>
+    <team id="226">
+        <cyclist id="3365"/>
+        <cyclist id="6897"/>
+        <cyclist id="2441"/>
+        <cyclist id="6331"/>
+        <cyclist id="6200"/>
+        <cyclist id="7024"/>
+        <cyclist id="6393"/>
+        <cyclist id="2683"/>
+    </team>
+</startlist>

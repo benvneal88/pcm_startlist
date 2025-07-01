@@ -1,6 +1,7 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, Response
 import sys
 import os
+import io
 
 from api import AppAPI
 from utils import logger_helper, commons
@@ -131,6 +132,36 @@ def index():
                              databases=[],
                              pcm_versions=commons.PCM_VERSIONS,
                              available_files=[])
+
+@app.route('/download/<int:start_list_race_id>')
+def download_start_list(start_list_race_id):
+    """Download the generated start list XML file"""
+    try:
+        result = api.download_start_list(start_list_race_id)
+        
+        if result is None:
+            flash("Start list file not found. Please generate it first.", 'error')
+            return redirect(url_for('index'))
+        
+        file_path, file_content = result
+        
+        # Get the filename from the path
+        filename = os.path.basename(file_path)
+        
+        # Create a file-like object from the content
+        file_obj = io.BytesIO(file_content.encode('utf-8'))
+        
+        return send_file(
+            file_obj,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/xml'
+        )
+        
+    except Exception as e:
+        logger.error(f"Error downloading start list: {str(e)}")
+        flash(f"Error downloading start list: {str(e)}", 'error')
+        return redirect(url_for('index'))
 
 if __name__ == '__main__':
     logger.info(f"Starting application on port {commons.APP_PORT}")

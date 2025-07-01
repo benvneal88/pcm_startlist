@@ -14,7 +14,7 @@ from utils import commons
 logger = logger_helper.get_logger(__name__)
 
 
-def generate_xml_start_list(df):
+def get_xml_start_list(df):
     # Create the root element
     startlist = ET.Element('startlist')
 

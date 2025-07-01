@@ -295,8 +295,8 @@
                             <td>{{ start_list.cyclists_count }}</td>
                             <td>
                                 <div class="btn-group" role="group">
-                                    <button class="btn btn-sm btn-outline-primary" onclick="viewStartList({{ start_list.id }})">View</button>
-                                    <button class="btn btn-sm btn-outline-success" onclick="downloadXML({{ start_list.id }})">Download</button>
+                                    <button class="btn btn-sm btn-outline-primary" onclick="viewStartList({{ start_list.start_list_race_id }})">View</button>
+                                    <button class="btn btn-sm btn-outline-success" onclick="downloadXML({{ start_list.start_list_race_id }})">Download</button>
                                 </div>
                             </td>
                         </tr>
@@ -459,5 +459,14 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+function downloadXML(start_list_race_id) {
+    window.location.href = "{{ url_for('download_start_list', start_list_race_id=0) }}".replace('0', start_list_race_id);
+}
+
+function viewStartList(start_list_id) {
+    // TODO: Implement view functionality
+    alert('View functionality to be implemented for start list ID: ' + start_list_id);
+}
 </script>
 {% endblock %}
