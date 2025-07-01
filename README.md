@@ -1,12 +1,13 @@
-# Start List Generator for Pro Cycling Manager
+# \*IN BETA\* Start List Generator for Pro Cycling Manager
 
-This project is a Python application designed to generate race start lists for the Pro Cycling Manager video game. It pulls real start list data from the internet and integrates it with the race and rider data from the PCM database (SQLite), creating XML files that the game can utilize.
+This project is a Python based web app which generates start lists for the Pro Cycling Manager video game. 
 
 ## Features
 
 1. Download and parse real life start lists
-2. Match start list data with PCM database data 
-3. Generate PCM-compatible start list XML files
+2. Import custom PCM databases
+3. Match start list data with PCM database data 
+4. Generate PCM-compatible start list XML files
 
 ![alt text](docs/web-app-screenshot.png)
 
