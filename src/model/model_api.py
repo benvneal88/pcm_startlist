@@ -418,7 +418,7 @@ class AppDatabase:
             index=False
         )
 
-        start_list_races_rows = database_helper.run_query(self.connection, f"SELECT id FROM {TableName.START_LIST_RACES.value} WHERE year = {race_year} AND name = '{race_name}' AND pcm_database_id = {pcm_database_id} AND pcm_race_id = {pcm_race_id} ORDER BY id DESC")
+        start_list_races_rows = database_helper.run_query(self.connection, f"SELECT id FROM {TableName.START_LIST_RACES.value} WHERE year = {race_year} AND pcm_database_id = {pcm_database_id} AND pcm_race_id = {pcm_race_id} ORDER BY id DESC")
         start_list_race_id = start_list_races_rows[0]['id']
 
         insert_teams_df = df[['team_name', 'pcm_team_id']].drop_duplicates()
