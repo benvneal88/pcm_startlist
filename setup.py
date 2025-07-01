@@ -3,8 +3,8 @@ from setuptools import setup, find_packages
 setup(
     name='pcm_startlist',
     version='0.1.0',
-    author='Your Name',
-    author_email='your.email@example.com',
+    author='benvneal',
+    author_email='benvneal@example.com',
     description='A Python package for generating start lists for Pro Cycling Manager from online data.',
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
