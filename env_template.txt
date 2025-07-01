@@ -1,0 +1,13 @@
+# Database Configuration
+POSTGRES_DB=pcm_startlist
+POSTGRES_USER=pcm_user
+POSTGRES_PASSWORD=pcm_password
+DATABASE_URL=postgresql://pcm_user:pcm_password@postgres:5432/pcm_startlist
+
+# Flask Configuration
+FLASK_ENV=production
+SECRET_KEY=your-secret-key-change-in-production
+
+# Additional PostgreSQL settings
+POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
+POSTGRES_HOST_AUTH_METHOD=scram-sha-256
