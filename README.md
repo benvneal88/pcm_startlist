@@ -23,9 +23,10 @@ Requried software
 Configure and Launch the Web App
 1. Clone the repository with `git clone git@github.com:benvneal88/pcm_startlist.git`
 2. Navigate to the project root folder `pcm_startlist` 
-3. Configure the environment file by changing the file `env_template.txt` to `.env`
-4. In terminal/command prompt launch the web app using Docker with `docker-compose up --build`
+3. Configure the environment file by renaming the file `env_template.txt` to `.env`
+4. Launch the web app using Docker with `docker-compose up --build` in terminal/command prompt 
 5. Access the Web App with a broswer at `http://localhost:8080`
+6. When done stop the app with Docker Desktop or issuing a `ctrl+c` in terminal/command prompt 
 
 
 ## Export Custom PCM Database
