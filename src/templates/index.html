@@ -4,7 +4,7 @@
 <div class="container">
     <div class="row">
         <div class="col-md-12">
-            <p class="lead">Follow the steps below to generate start lists for PCM races.</p>
+            <p class="lead">Generate PCM start lists by following the steps below</p>
         </div>
     </div>
 
@@ -12,10 +12,10 @@
     <div class="card mb-4">
         <div class="card-header">
             <h3 class="mb-0">
-                Step 1: Select PCM Database
                 {% if selected_database %}
                 <span class="badge bg-success">✓</span>
                 {% endif %}
+                Step 1: Select PCM Database
             </h3>
         </div>
         <div class="card-body">
@@ -103,10 +103,10 @@
     <div class="card mb-4">
         <div class="card-header">
             <h3 class="mb-0">
-                Step 2: Select PCM Race
                 {% if selected_race %}
                 <span class="badge bg-success">✓</span>
                 {% endif %}
+                Step 2: Select PCM Race
             </h3>
         </div>
         <div class="card-body">
@@ -114,7 +114,7 @@
             <!-- Race Selected - Show persistent properties -->
             <div class="row">
                 <div class="col-md-4">
-                    <strong>Race Name:</strong> {{ selected_race.race_name }}
+                    <strong>Race Name:</strong> {{ selected_race.pcm_race_name }}
                 </div>
                 <div class="col-md-4">
                     <strong>Abbreviation:</strong> {{ selected_race.race_abbrreviation }}
@@ -234,7 +234,7 @@
                             <label for="start_list_race_name" class="form-label">Start List Race Name (Optional)</label>
                             <input type="text" class="form-control" id="start_list_race_name" name="start_list_race_name" 
                                    placeholder="Override race name for start list search">
-                            <div class="form-text">Leave blank to use: {{ selected_race.race_name }}</div>
+                            <div class="form-text">Leave blank to use: {{ selected_race.start_list_race_name }}</div>
                         </div>
                     </div>
                     <div class="col-md-4">
@@ -247,14 +247,7 @@
                     </div>
                 </div>
                 
-                <div class="mb-3 form-check">
-                    <input type="checkbox" class="form-check-input" id="force_refresh" name="force_refresh">
-                    <label class="form-check-label" for="force_refresh">
-                        Force refresh start list data
-                    </label>
-                </div>
-                
-                <button type="submit" class="btn btn-success">Generate Start List</button>
+                <button type="submit" class="btn btn-primary">Generate Start List</button>
             </form>
         </div>
     </div>
@@ -264,11 +257,11 @@
     <div class="card mb-4">
         <div class="card-header">
             {% if selected_database and selected_race %}
-            <h3 class="mb-0">Start Lists for selected Race</h3>
+            <h3 class="mb-0">Start Lists for selected PCM Database & Race</h3>
             {% elif selected_database %}
-            <h3 class="mb-0">Start Lists for selected Database</h3>
+            <h3 class="mb-0">Start Lists for selected PCM Database</h3>
             {% else %}
-            <h3 class="mb-0">Start Lists</h3>
+            <h3 class="mb-0">All Start Lists</h3>
             {% endif %}
         </div>
         <div class="card-body">
@@ -277,28 +270,32 @@
                 <table class="table table-striped">
                     <thead>
                         <tr>
+                            <th>Id</th>
                             <th>PCM Version</th>
                             <th>Database Name</th>
-                            <th>Start List Id</th>
                             <th>Race Year</th>
                             <th>Race Name</th>
-                            <th>Cyclist Count</th>
+                            <th>Matched Count</th>
+                            <th>Unmatched Count</th>
+                            <th>Generated At</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for start_list in existing_start_lists %}
                         <tr>
+                            <td>{{ start_list.start_list_race_id }}</td>
                             <td>{{ start_list.pcm_version }}</td>
                             <td>{{ start_list.pcm_database_name }}</td>
-                            <td>{{ start_list.start_list_race_id }}</td>
                             <td>{{ start_list.race_year }}</td>
                             <td>{{ start_list.race_name }}</td>
-                            <td>{{ start_list.cyclists_count }}</td>
+                            <td>{{ start_list.matched_count }}</td>
+                            <td>{{ start_list.unmatched_count }}</td>
+                            <td>{{ start_list.start_list_downloaded_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
                             <td>
                                 <div class="btn-group" role="group">
-                                    <button class="btn btn-sm btn-outline-primary" onclick="viewStartList({{ start_list.start_list_race_id }})">View</button>
-                                    <button class="btn btn-sm btn-outline-success" onclick="downloadXML({{ start_list.start_list_race_id }})">Download</button>
+                                    <button class="btn btn-sm btn-primary" onclick="viewStartList({{ start_list.start_list_race_id }})">View</button>
+                                    <button class="btn btn-sm btn-primary" onclick="downloadXML({{ start_list.start_list_race_id }})">Download</button>
                                 </div>
                             </td>
                         </tr>
@@ -350,7 +347,7 @@
                             <div class="tab-pane fade show active" id="existing" role="tabpanel">
                                 <div class="mt-3">
                                     <select class="form-select" id="existing_file_select" name="existing_pcm_database_file">
-                                        <option value="">Select an existing database file</option>
+                                        <option value="">Select an available database file</option>
                                         {% for file in available_files %}
                                         <option value="{{ file.name }}">
                                             {{ file.name }} ({{ "%.1f"|format(file.size / 1024 / 1024) }} MB)
@@ -374,9 +371,9 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="pcm_database_name" class="form-label">Database Display Name</label>
+                                <label for="pcm_database_name" class="form-label">Database Name</label>
                                 <input type="text" class="form-control" id="pcm_database_name" name="pcm_database_name" required>
-                                <div class="form-text">Enter a friendly name for this database</div>
+                                <div class="form-text">Enter a name for this database</div>
                             </div>
                         </div>
                         <div class="col-md-6">
@@ -463,12 +460,14 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function downloadXML(start_list_race_id) {
+    console.log('Downloading start list with ID:', start_list_race_id);
     window.location.href = "{{ url_for('download_start_list', start_list_race_id=0) }}".replace('0', start_list_race_id);
 }
 
-function viewStartList(start_list_id) {
-    // TODO: Implement view functionality
-    alert('View functionality to be implemented for start list ID: ' + start_list_id);
+function viewStartList(start_list_race_id) {
+    console.log('Viewing start list with ID:', start_list_race_id);
+    const viewUrl = "{{ url_for('view_start_list', start_list_race_id=0) }}".replace('0', start_list_race_id);
+    window.open(viewUrl, '_blank');
 }
 </script>
 {% endblock %}

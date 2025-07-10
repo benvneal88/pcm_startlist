@@ -1,5 +1,6 @@
 import sys
 import os
+import pandas as pd
 
 from pcm import pcm_api
 from model import model_api
@@ -13,6 +14,7 @@ class AppAPI():
     
     def __init__(self):
         self.app_model = model_api.AppDatabase(db_url=os.getenv('DATABASE_URL'))
+        pd.set_option('display.max_columns', None)
 
     def close(self):
         """Close the app instance"""
@@ -26,9 +28,9 @@ class AppAPI():
         :param race_year: The year/edition of the race for fetching the start list
         :return: The file path of the raw start list
         """
-        pcm_start_list_file_name, race_name = self.app_model.get_pcm_race_details(pcm_database_id, pcm_race_id)
+        race_df = self.app_model.get_race(pcm_database_id, pcm_race_id)
         pcm_database_name, pcm_version = self.app_model.get_pcm_database_details(pcm_database_id)
-        return os.path.join(commons.START_LIST_OUTPUT_PATH, pcm_version, pcm_database_name, str(race_year), f"{pcm_start_list_file_name}.xml") 
+        return os.path.join(commons.START_LIST_OUTPUT_PATH, pcm_version, pcm_database_name, str(race_year), f"{race_df.iloc[0]['file_name']}.xml")
 
     def generate_start_list(
             self,
@@ -36,8 +38,7 @@ class AppAPI():
             pcm_race_id,
             race_year,
             start_list_race_name=None,
-            start_list_url=None,
-            force_start_list_refresh=False
+            start_list_url=None
         ):
         """Generates the start list XML
         
@@ -49,13 +50,12 @@ class AppAPI():
         :force_start_list_refresh: If True, forces fetching the start list from the internet even if it already exists
         """ 
 
+        race_df = self.app_model.get_race(pcm_database_id, pcm_race_id)
+        start_list_race_name = start_list_race_name if start_list_race_name else race_df.iloc[0]['start_list_race_name']
 
-        pcm_start_list_file_name, race_name = self.app_model.get_pcm_race_details(pcm_database_id, pcm_race_id)
-        start_list_race_name = start_list_race_name if start_list_race_name else race_name
-
-        start_list_file_id = self.app_model.download_and_stage_start_list(race_year, start_list_race_name, start_list_url)
+        start_list_file_id, start_list_downloaded_at = self.app_model.download_and_stage_start_list(race_year, start_list_race_name, start_list_url)
         final_df = self.app_model.match_start_list_and_pcm(pcm_database_id, start_list_file_id)
-        start_list_race_id = self.app_model.insert_start_list_race_data(final_df, pcm_database_id, pcm_race_id, race_name, race_year)
+        start_list_race_id = self.app_model.insert_start_list_race_data(final_df, pcm_database_id, pcm_race_id, race_df.iloc[0]['pcm_race_name'], race_year, start_list_downloaded_at)
         df = self.app_model.get_start_list_data(start_list_race_id)
 
         pcm_database_name, pcm_version = self.app_model.get_pcm_database_details(pcm_database_id)
@@ -75,18 +75,26 @@ class AppAPI():
         """Downloads the generated start list file
 
         :param start_list_race_id: The ID of the start list race to download
-
         :return: Tuple of (file_path, file_content) if file exists, None otherwise
         """
-        df = self.app_model.get_start_list_details(start_list_race_id)
-        pcm_database_id, pcm_race_id, race_year = df['pcm_database_id'].values[0], df['pcm_race_id'].values[0], df['race_year'].values[0]
-        file_path = self.get_start_list_output_file_path(pcm_database_id, pcm_race_id, race_year)
-        
-        if not os.path.exists(file_path):
-            logger.warning(f"Start list file not found at {file_path}")
-            return None
-            
         try:
+            logger.info(f"Attempting to download start list for ID: {start_list_race_id}")
+            df = self.app_model.get_start_list_details(start_list_race_id)
+            
+            if df.empty:
+                logger.warning(f"No start list details found for ID: {start_list_race_id}")
+                return None
+                
+            pcm_database_id, pcm_race_id, race_year = df['pcm_database_id'].values[0], df['pcm_race_id'].values[0], df['race_year'].values[0]
+            logger.info(f"Found details - database_id: {pcm_database_id}, race_id: {pcm_race_id}, year: {race_year}")
+            
+            file_path = self.get_start_list_output_file_path(pcm_database_id, pcm_race_id, race_year)
+            logger.info(f"Looking for file at: {file_path}")
+            
+            if not os.path.exists(file_path):
+                logger.warning(f"Start list file not found at {file_path}")
+                return None
+                
             with open(file_path, 'r', encoding='utf-8') as f:
                 file_content = f.read()
             
@@ -94,7 +102,7 @@ class AppAPI():
             return file_path, file_content
             
         except Exception as e:
-            logger.error(f"Error reading start list file {file_path}: {str(e)}")
+            logger.error(f"Error in download_start_list: {str(e)}")
             return None
 
     def import_pcm_database(self, pcm_version, pcm_database_name):
@@ -128,11 +136,13 @@ class AppAPI():
         return df.to_dict(orient='records')
     
 
-    def get_pcm_race(self, pcm_database_id, pcm_race_id):
+    def get_race(self, pcm_database_id, pcm_race_id):
         """Retrieves PCM races
         :return:
         """
-        df = self.app_model.get_pcm_race(pcm_database_id, pcm_race_id)
+        df = self.app_model.get_race(pcm_database_id, pcm_race_id)
+        logger.info(f"Fetched race with pcm_database_id {pcm_database_id} and pcm_race_id {pcm_race_id}")
+        logger.info(df)
         if df.empty:
             return None
         return df.to_dict(orient='records')[0]

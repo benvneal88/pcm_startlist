@@ -56,11 +56,10 @@ def index():
         race_year = request.form.get('race_year')
         start_list_race_name = request.form.get('start_list_race_name')
         start_list_url = request.form.get('start_list_url')
-        force_refresh = request.form.get('force_refresh') == 'on'
         
         try:
             flash(f"Start list generation initiated for race {pcm_race_id} in year {race_year}", 'success')
-            generated_file_path = api.generate_start_list(pcm_database_id, pcm_race_id, race_year, start_list_race_name, start_list_url, force_refresh)
+            generated_file_path = api.generate_start_list(pcm_database_id, pcm_race_id, race_year, start_list_race_name, start_list_url)
             return redirect(url_for('index', pcm_database_id=pcm_database_id, pcm_race_id=pcm_race_id))
         except Exception as e:
             logger.error(f"Error generating start list: {str(e)}")
@@ -107,7 +106,7 @@ def index():
             
             # Get selected race
             if pcm_race_id:
-                selected_race = api.get_pcm_race(pcm_database_id, pcm_race_id)
+                selected_race = api.get_race(pcm_database_id, pcm_race_id)
 
         # Get existing start lists
         existing_start_lists = api.get_start_lists(pcm_database_id, pcm_race_id)
@@ -137,16 +136,18 @@ def index():
 def download_start_list(start_list_race_id):
     """Download the generated start list XML file"""
     try:
+        logger.info(f"Download request for start_list_race_id: {start_list_race_id}")
         result = api.download_start_list(start_list_race_id)
         
         if result is None:
+            logger.warning(f"No file found for start_list_race_id: {start_list_race_id}")
             flash("Start list file not found. Please generate it first.", 'error')
             return redirect(url_for('index'))
         
         file_path, file_content = result
-        
-        # Get the filename from the path
         filename = os.path.basename(file_path)
+        
+        logger.info(f"Serving download for file: {filename}")
         
         # Create a file-like object from the content
         file_obj = io.BytesIO(file_content.encode('utf-8'))
@@ -163,6 +164,34 @@ def download_start_list(start_list_race_id):
         flash(f"Error downloading start list: {str(e)}", 'error')
         return redirect(url_for('index'))
 
+@app.route('/view/<int:start_list_race_id>')
+def view_start_list(start_list_race_id):
+    """View the generated start list XML file in browser"""
+    try:
+        logger.info(f"View request for start_list_race_id: {start_list_race_id}")
+        result = api.download_start_list(start_list_race_id)
+        
+        if result is None:
+            flash("Start list file not found. Please generate it first.", 'error')
+            return redirect(url_for('index'))
+        
+        file_path, file_content = result
+        filename = os.path.basename(file_path)
+        
+        logger.info(f"Serving view for file: {filename}")
+        
+        # Render HTML template with XML content
+        return render_template('view_xml.html', 
+                             filename=filename, 
+                             xml_content=file_content)
+        
+    except Exception as e:
+        logger.error(f"Error viewing start list: {str(e)}")
+        flash(f"Error viewing start list: {str(e)}", 'error')
+        return redirect(url_for('index'))
+
 if __name__ == '__main__':
+    logger.info(f"Starting application on port {commons.APP_PORT}")
+    app.run(debug=False, host='0.0.0.0', port=commons.APP_PORT)
     logger.info(f"Starting application on port {commons.APP_PORT}")
     app.run(debug=False, host='0.0.0.0', port=commons.APP_PORT)

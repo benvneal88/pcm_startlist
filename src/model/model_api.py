@@ -5,6 +5,7 @@ from tqdm import tqdm
 from thefuzz import process, fuzz
 from enum import Enum
 from sqlalchemy import text
+from datetime import datetime
 
 from scrapers import procyclingstats
 from utils import database_helper
@@ -39,6 +40,7 @@ class TableName(Enum):
     TEAMS = "tbl_teams"
     START_LIST_RACES = "tbl_start_list_races"
     CYCLISTS = "tbl_cyclists"
+    RACE_NAME_LOOKUP = "tbl_race_name_lookup"
 
 class AppDatabase:
     """Interface to the application database."""
@@ -47,21 +49,13 @@ class AppDatabase:
         self.db_url = db_url or DATABASE_URL
         self.connection = None
         self.scraper = None
-        self.is_postgresql = self.db_url.startswith('postgresql')
-        
-        if not self.is_postgresql:
-            # Ensure directory exists for SQLite
-            os.makedirs(os.path.dirname(self.db_file), exist_ok=True)
-        
+
         self.connect()
         self.init_tables()
 
     def connect(self):
         if self.connection is None:
-            self.connection = database_helper.get_database_connection(
-                db_file=self.db_file if not self.is_postgresql else None,
-                db_url=self.db_url if self.is_postgresql else None
-            )
+            self.connection = database_helper.get_database_connection(db_url=self.db_url)
 
     def close(self):
         if self.connection:
@@ -76,13 +70,6 @@ class AppDatabase:
             self.scraper = procyclingstats.ProCyclingStatsStartListScraper(race_year, race_name, start_list_url)
 
     def init_tables(self):
-        """Create database tables - works for both SQLite and PostgreSQL"""
-        if self.is_postgresql:
-            self._init_postgresql_tables()
-        else:
-            self._init_sqlite_tables()
-
-    def _init_postgresql_tables(self):
         """Initialize PostgreSQL tables"""
         logger.info("Initializing PostgreSQL tables...")
         with self.connection.connect() as conn:
@@ -169,6 +156,7 @@ class AppDatabase:
                     year INTEGER NOT NULL,
                     pcm_race_id INTEGER NOT NULL,
                     pcm_database_id INTEGER NOT NULL,
+                    start_list_downloaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (pcm_database_id) REFERENCES {TableName.PCM_DATABASE.value} (id)
                          ON DELETE CASCADE
                          ON UPDATE NO ACTION
@@ -210,13 +198,39 @@ class AppDatabase:
 
             conn.execute(text(f'''
                 CREATE OR REPLACE VIEW {TableName.START_LIST_VIEW.value} AS
-                SELECT d.id as pcm_database_id, d.pcm_database_name, d.pcm_version, r.id as start_list_race_id, r.year as race_year, r.pcm_race_id, r.name as race_name, t.pcm_team_id, t.team_name, c.pcm_cyclist_id, c.cyclist_name
+                SELECT d.id as pcm_database_id, d.pcm_database_name, d.pcm_version, r.id as start_list_race_id, r.year as race_year, r.pcm_race_id, r.name as race_name, t.pcm_team_id, t.team_name, c.pcm_cyclist_id, c.cyclist_name, r.start_list_downloaded_at
                 FROM {TableName.PCM_DATABASE.value} d
                     INNER JOIN  {TableName.START_LIST_RACES.value} r ON d.id = r.pcm_database_id
                     INNER JOIN {TableName.TEAMS.value} t ON r.id = t.start_list_race_id
                     INNER JOIN {TableName.CYCLISTS.value} c ON t.id = c.team_id
             '''))
+
+            conn.execute(text(f'''
+                CREATE TABLE IF NOT EXISTS {TableName.RACE_NAME_LOOKUP.value}(
+                    id SERIAL PRIMARY KEY,
+                    pcm_race_name TEXT,
+                    start_list_race_name TEXT
+                )
+            '''))
+
             conn.commit()
+    
+        self.insert_lookups()
+
+    def insert_lookups(self, lookups=["race_name"]):
+        """
+        Imports lookup data into the database.
+        """
+        for lookup in lookups:
+            df = pd.read_csv(os.path.join(commons.LOOKUP_PATH, f"{lookup}.csv"))
+            with self.connection.connect() as conn:
+                df.to_sql(
+                    name=TableName[f"{lookup.upper()}_LOOKUP"].value,
+                    con=conn,
+                    if_exists="replace",
+                    index=False
+                )
+                conn.commit()
 
     def import_pcm_data(self, pcm_version, pcm_database_name):
         """Fetches and stages the data from the PCM database.
@@ -250,28 +264,21 @@ class AppDatabase:
         table_name = TableName[object_name].value
         logger.info(f"Inserting {len(df)} rows into table '{table_name}'")
         
-        if self.is_postgresql:
-            df.to_sql(
-                name=table_name,
-                con=self.connection,
-                if_exists="append",
-                index=False,
-                method='multi'
-            )
-        else:
-            df.to_sql(
-                name=table_name,
-                con=self.connection,
-                if_exists="append",
-                index=False
-            )
+        df.to_sql(
+            name=table_name,
+            con=self.connection,
+            if_exists="append",
+            index=False,
+            method='multi'
+        )
 
     def download_and_stage_start_list(self, race_year, start_list_race_name, start_list_url=None, fetch_from_web=False):
         """Downloads the start list from the web and inserts it into the database."""
         self.init_scraper(race_year=race_year, race_name=start_list_race_name, start_list_url=start_list_url)
 
         start_list_url, start_list_file_path_html = self.scraper.fetch_start_list(fetch_from_web=fetch_from_web)
-            
+        start_list_downloaded_at = datetime.now()
+
         with open(start_list_file_path_html, "rb") as file:
             html_string = file.read().decode('utf-8')
 
@@ -286,6 +293,7 @@ class AppDatabase:
             "race_name": [start_list_race_name],
             "url": [start_list_url],
             "blob_content": [html_string],
+            "downloaded_at": [start_list_downloaded_at]
         }
 
         df = pd.DataFrame.from_dict(row_dict)
@@ -310,7 +318,7 @@ class AppDatabase:
         )
         
         logger.info(f"Added {len(df)} Start List cyclists into table '{TableName.START_LIST_CYCLISTS.value}'")
-        return start_list_file_id
+        return start_list_file_id, start_list_downloaded_at
 
     def match_start_list_and_pcm(self, pcm_database_id, start_list_file_id):
         """Matches PCM start list with the given PCM database ID and start list file ID."""
@@ -392,11 +400,13 @@ class AppDatabase:
         })
         unmatched_count = final_df['pcm_cyclist_id'].isnull().sum()
         logger.info(f"There are {unmatched_count} cyclists without matches ...")
-        logger.info(f"{final_df[final_df['pcm_cyclist_id'].isnull()]}")
+        if unmatched_count > 0:
+            logger.warning(f"Unmatched cyclists:\n{final_df[final_df['pcm_cyclist_id'].isnull()]}")
+            logger.warning("This may be due to missing PCM data or incorrect start list data.")
 
         return final_df
     
-    def insert_start_list_race_data(self, df, pcm_database_id, pcm_race_id, race_name, race_year):
+    def insert_start_list_race_data(self, df, pcm_database_id, pcm_race_id, race_name, race_year, start_list_downloaded_at):
         """Inserts the start list riders into the database."""
 
         start_list_race_df = pd.DataFrame(
@@ -404,7 +414,8 @@ class AppDatabase:
                 "pcm_database_id": [pcm_database_id], 
                 "pcm_race_id": [pcm_race_id], 
                 "name": [race_name], 
-                "year": [race_year]
+                "year": [race_year],
+                "start_list_downloaded_at": [start_list_downloaded_at]
             }
         )
 
@@ -491,10 +502,17 @@ class AppDatabase:
             return None
         return df['pcm_database_name'].iloc[0], df['pcm_version'].iloc[0] 
 
-    def get_pcm_race(self, pcm_database_id, pcm_race_id):
+    def get_race(self, pcm_database_id, pcm_race_id):
         filter_clause = f" WHERE pcm_database_id = {pcm_database_id} AND race_id = {pcm_race_id}"
-        query = f"SELECT pcm_database_id, race_id as pcm_race_id, race_name, race_abbrreviation, file_name FROM {TableName.PCM_RACE.value} {filter_clause} ORDER BY race_name"
-        logger.info(f"Fetching PCM race with query {query}")
+        query = f"""
+            SELECT pcm.pcm_database_id, pcm.race_id as pcm_race_id, pcm.race_name as pcm_race_name, COALESCE(race_name_lookup.start_list_race_name, pcm.race_name) as start_list_race_name, pcm.race_abbrreviation, pcm.file_name 
+            FROM {TableName.PCM_RACE.value} pcm
+                LEFT JOIN {TableName.RACE_NAME_LOOKUP.value} race_name_lookup ON pcm.race_name = race_name_lookup.pcm_race_name
+            {filter_clause} 
+            ORDER BY pcm.race_name
+        """
+        logger.debug(f"Fetching PCM race with query {query}")
+        #logger.info(pd.read_sql_query(f"select * from {TableName.RACE_NAME_LOOKUP.value}", self.connection))
         df = pd.read_sql_query(query, self.connection)
         return df
 
@@ -522,34 +540,31 @@ class AppDatabase:
             filter += f" pcm_race_id = {pcm_race_id}"
         
         query = f"""
-            SELECT pcm_database_id, pcm_version, pcm_database_name, start_list_race_id, race_name, race_year, COUNT(*) as cyclists_count
+            SELECT 
+                pcm_database_id, 
+                pcm_version,
+                pcm_database_name, 
+                start_list_race_id, 
+                race_name, 
+                race_year,
+                COUNT(case when pcm_cyclist_id is not null then 1 end) as matched_count,
+                COUNT(case when pcm_cyclist_id is null then 1 end) as unmatched_count,
+                start_list_downloaded_at
             FROM {TableName.START_LIST_VIEW.value} 
             {filter} 
-            GROUP BY pcm_database_id, pcm_version, pcm_database_name, start_list_race_id, race_name, race_year 
+            GROUP BY pcm_database_id, pcm_version, pcm_database_name, start_list_race_id, race_name, race_year, start_list_downloaded_at
             ORDER BY pcm_database_name DESC, race_year DESC
         """
         logger.info(f"")
         df = pd.read_sql_query(query, self.connection)
         return df
 
-    def get_pcm_race_details(self, pcm_database_id, pcm_race_id):
-        results = database_helper.run_query(self.connection, f"SELECT race_id, LOWER(race_name) as race_name, file_name FROM {TableName.PCM_RACE.value} WHERE pcm_database_id = {pcm_database_id} and race_id = {pcm_race_id}")
-        if results is None or len(results) == 0:
-            logger.error(f"🚨 Could not find PCM start list file for pcm_database_id={pcm_database_id} and race_id={pcm_race_id}")
-            return None
-        file_name = f"{results[0]['file_name']}"
-        race_name = results[0]['race_name']
-        return file_name, race_name
-
     def get_pcm_database_id(self, pcm_version, pcm_database_name):
         """Returns the database id for a given PCM version and database name."""
         sql_statement = f"SELECT id as pcm_database_id FROM {TableName.PCM_DATABASE.value} WHERE pcm_database_name = '{escape_text_sql(pcm_database_name)}' AND pcm_version = '{escape_text_sql(pcm_version)}' order by created_at desc"
         
-        if self.is_postgresql:
-            df = pd.read_sql_query(sql_statement, self.connection)
-        else:
-            df = pd.read_sql_query(sql_statement, self.connection)
-        
+        df = pd.read_sql_query(sql_statement, self.connection)
+
         pcm_database_id = df['pcm_database_id'].iloc[0] if not df.empty else None
         return pcm_database_id
 

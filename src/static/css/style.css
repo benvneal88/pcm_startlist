@@ -35,3 +35,56 @@ body {
 .loading.show {
     display: block;
 }
+
+/* Custom dark blue theme for buttons */
+.btn-primary,
+.btn-success {
+    background-color: #2c3e50 !important;
+    border-color: #2c3e50 !important;
+    color: #ffffff !important;
+}
+
+.btn-primary:hover,
+.btn-success:hover {
+    background-color: #34495e !important;
+    border-color: #34495e !important;
+    color: #ffffff !important;
+}
+
+.btn-primary:focus,
+.btn-success:focus,
+.btn-primary.focus,
+.btn-success.focus {
+    background-color: #34495e !important;
+    border-color: #34495e !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 0 0.2rem rgba(44, 62, 80, 0.5) !important;
+}
+
+.btn-primary:active,
+.btn-success:active,
+.btn-primary.active,
+.btn-success.active {
+    background-color: #1a252f !important;
+    border-color: #1a252f !important;
+    color: #ffffff !important;
+}
+
+/* Outline buttons */
+.btn-outline-primary,
+.btn-outline-success {
+    color: #2c3e50 !important;
+    border-color: #2c3e50 !important;
+}
+
+.btn-outline-primary:hover,
+.btn-outline-success:hover {
+    background-color: #2c3e50 !important;
+    border-color: #2c3e50 !important;
+    color: #ffffff !important;
+}
+
+.btn-outline-primary:focus,
+.btn-outline-success:focus {
+    box-shadow: 0 0 0 0.2rem rgba(44, 62, 80, 0.5) !important;
+}
