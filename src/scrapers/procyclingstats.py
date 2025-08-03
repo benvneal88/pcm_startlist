@@ -1,3 +1,4 @@
+from time import sleep
 from typing import List, Dict
 import requests
 from bs4 import BeautifulSoup
@@ -9,12 +10,27 @@ from utils import logger_helper
 logger = logger_helper.get_logger(__name__)
 
 
+def parse_race_index_page(get_race_index_url, class_name):
+    logger.info(f"Fetching race data from '{get_race_index_url}'")
+    race_index = []
+    response = requests.get(get_race_index_url)
+    if response.status_code != 200:
+        logger.error(f"Failed to retrieve race data from {get_race_index_url}")
+        return race_index
+    
+    soup = BeautifulSoup(response.text, "html.parser")
+    for link in soup.find_all("a"):
+        href = link.get("href")
+        if href and "race/" in href:
+            race_index.append({"url": href, "name": link.text.strip(), "class": class_name})
+    return race_index
+
 class ProCyclingStatsStartListScraper(StartListScraper):
-    def __init__(self, race_year, race_name, start_list_url=None):
-        super().__init__(data_source_name="procyclingstats", race_year=race_year, race_name=race_name, start_list_url=start_list_url)
+    def __init__(self, race_year, race_name, force_start_list_url=None):
+        super().__init__(data_source_name="procyclingstats", race_year=race_year, race_name=race_name, force_start_list_url=force_start_list_url)
 
     def get_start_list_raw_url(self) -> str:
-        url = f"https://www.procyclingstats.com/race/{self.race_name_dashed}/{self.race_year}/startlist/startlist"
+        url = f"https://www.procyclingstats.com/race/{self.race_name}/{self.race_year}/startlist/startlist"
         return url
 
     def transform_raw_start_list(self, html_string) -> List[Dict]:
@@ -89,5 +105,40 @@ class ProCyclingStatsStartListScraper(StartListScraper):
 
         return df
 
-    def transform_raw_start_list_races(self, html_string) -> List[Dict]:
-        soup = BeautifulSoup(html_string, "html.parser")
+    def get_race_index() -> List[Dict]:
+        """Fetches race name to race url associations to pull start lists from"""
+        race_filters = [
+            {
+                "class": "2.Pro",
+                "category": "1",
+            },
+            {
+                "class": "2.UWT",
+                "category": "1",
+            },
+            {
+                "class": "2.1",
+                "category": "1",
+            },
+            {
+                "class": "2.2",
+                "category": "1",
+            },
+            {
+                "class": "2.HC",
+                "category": "1",
+            },
+            {
+                "class": "1.Pro",
+                "category": "1",
+            }  
+        ]
+        logger.info(f"Fetching race index from Pro Cycling Stats:\n {race_filters}")
+
+        race_index = []
+        for race_filter in race_filters:
+            sleep(1)  # To avoid hitting the server too fast
+            race_index_url = f"https://www.procyclingstats.com/races.php?s=races-database&name=&nation=&class={race_filter.get('class', '')}&category={race_filter.get('category', '')}&year=&season=&month=&filter=Filter"
+            logger.info(f"Fetching race index from {race_index_url}")
+            race_index.extend(parse_race_index_page(race_index_url, race_filter.get('class', '')))
+        return race_index

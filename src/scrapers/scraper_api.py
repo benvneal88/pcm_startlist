@@ -23,31 +23,29 @@ def download_file(url: str, save_file_path):
     except Exception as e:
         logger.exception(e)
         logger.error(f"Failed to get successful response from url '{url}'")
-        logger.info(f"Exiting program")
-        sys.exit(1)
+        return False
 
     response_text = response.text
     if "Page not found" in response_text:
         logger.error(f"Page not found! '{url}'")
-        sys.exit(1)
+        return False
 
     logger.info(f"Successfully downloaded data from url '{url}'")
     with open(save_file_path, "w", encoding="utf-8") as _file:
         _file.write(response_text)
 
     logger.info(f"saved data to file {save_file_path}")
-
+    return True
 
 class StartListScraper(ABC):
-    def __init__(self, data_source_name, race_year: int = None, race_name: str = None, start_list_url: str = None):
+    def __init__(self, data_source_name, race_year: int = None, race_name: str = None, force_start_list_url: str = None):
         self.race_year = race_year
-        self.race_name = race_name.replace("'", " ") if race_name else None
-        self.race_name_dashed = self.race_name.replace(" ", "-") if self.race_name else None
-        if (not self.race_name or not self.race_year) and not start_list_url:
-            logger.error("You must provide either race_name and race_year or start_list_url to the StartListScraper")
+        self.race_name = race_name
+        if (not self.race_name or not self.race_year) and not force_start_list_url:
+            logger.error("You must provide either race_name and race_year or force_start_list_url to the StartListScraper")
             sys.exit(1)
 
-        self.start_list_url = start_list_url if start_list_url else self.get_start_list_raw_url()
+        self.start_list_url = force_start_list_url if force_start_list_url else self.get_start_list_raw_url()
         self.data_source_name = data_source_name
 
 
@@ -61,8 +59,8 @@ class StartListScraper(ABC):
         return start_list_raw_path
 
     def get_start_list_raw_file_name(self) -> str:
-        if self.race_name_dashed and self.race_year:
-            return f"{self.race_name_dashed}-{self.race_year}.html"
+        if self.race_name and self.race_year:
+            return f"{self.race_name}-{self.race_year}.html"
         return f"{self.start_list_url.replace('/', '_').replace(':', '_')}.html"
 
     def get_start_list_raw_file_path(self) -> str: 
@@ -78,57 +76,21 @@ class StartListScraper(ABC):
     def transform_raw_start_list(self, html_string) -> List[Dict]:
         pass
 
-    @abstractmethod
-    def transform_raw_start_list_races(self, html_string) -> List[Dict]:
-        pass
-
-    def get_start_list_raw(self, refresh: bool = False) -> bytes:
+    def get_start_list_raw(self, start_list_raw_file_path) -> bytes:
         """"Fetches Start List raw html data"""
-        start_list_raw_file_path = self.get_start_list_raw_file_path()
         if not os.path.exists(self.get_start_list_raw_dir_path()):
             os.makedirs(self.get_start_list_raw_dir_path())
-        if refresh:
-            download_file(self.start_list_url, start_list_raw_file_path)
-    
-        return start_list_raw_file_path
+        exit_code = download_file(self.start_list_url, start_list_raw_file_path)
+        return exit_code
 
-    def fetch_start_list(self, fetch_from_web=False):
+    def fetch_start_list(self):
         """Fetches the start list for a specific race."""
         raw_file_exists = self.does_start_list_raw_file_exist()
-        if fetch_from_web or not raw_file_exists:
-            start_list_raw_file_path = self.get_start_list_raw(refresh=True)
-        else:
-            start_list_raw_file_path = self.get_start_list_raw(refresh=False)
+        start_list_raw_file_path = self.get_start_list_raw_file_path()
+        is_success = self.get_start_list_raw(start_list_raw_file_path)
 
-        return self.start_list_url, start_list_raw_file_path
+        return self.start_list_url, start_list_raw_file_path, is_success
 
-    def insert_start_list_cyclists(self):
-        html_string = model_api.get_start_list_raw_html(
-            self.data_source_name,
-            self.race_year,
-            self.race_name
-        )
-
-        try:
-            df = self.transform_raw_start_list(html_string)
-        except Exception as e:
-            logger.exception(e)
-            logger.error("Failed to transform the html into a start list dataframe")
-            sys.exit(1)
-
-        model_api.insert_start_list_riders(df, self.race_name, self.race_year)
-
-    def insert_start_list_races(self):
-        html_string = model_api.get_race_list_races_raw_html(
-            self.data_source_name,
-            self.race_year
-        )
-
-        try:
-            df = self.transform_raw_start_list_races(html_string)
-        except Exception as e:
-            logger.exception(e)
-            logger.error("Failed to transform the html into a start list dataframe")
-            sys.exit(1)
-
-        model_api.insert_start_list_riders(df, self.race_name, self.race_year)
+    @abstractmethod
+    def get_race_index(self) -> List[Dict]:
+        pass

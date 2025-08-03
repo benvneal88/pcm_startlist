@@ -9,7 +9,7 @@ from xml.dom import minidom
 
 from utils import database_helper
 from utils import logger_helper
-import config
+
 from utils import commons
 logger = logger_helper.get_logger(__name__)
 

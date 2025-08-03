@@ -37,23 +37,25 @@ class AppAPI():
             pcm_database_id,
             pcm_race_id,
             race_year,
-            start_list_race_name=None,
-            start_list_url=None
+            force_start_list_race_name=None,
+            force_start_list_url=None
         ):
         """Generates the start list XML
         
         :param pcm_database_id: The ID of the imported PCM database to use
         :param pcm_race_id: The ID of the PCM race to generate the start list for
         :param race_year: The year/edition of the race for fetching the start list
-        :param start_list_race_name: Force the start list lookup for a specific name (optional)
-        :param start_list_url: Force the start list lookup for a specific url. (optional)
-        :force_start_list_refresh: If True, forces fetching the start list from the internet even if it already exists
+        :param force_start_list_race_namestart_list_race_name: Force the start list lookup for a specific name (optional)
+        :param force_start_list_url: Force the start list lookup for a specific url. (optional)
         """ 
 
         race_df = self.app_model.get_race(pcm_database_id, pcm_race_id)
-        start_list_race_name = start_list_race_name if start_list_race_name else race_df.iloc[0]['start_list_race_name']
+        start_list_race_name = force_start_list_race_name if force_start_list_race_name else race_df.iloc[0]['start_list_race_name']
 
-        start_list_file_id, start_list_downloaded_at = self.app_model.download_and_stage_start_list(race_year, start_list_race_name, start_list_url)
+        start_list_file_id, start_list_downloaded_at, start_list_url = self.app_model.download_and_stage_start_list(race_year, start_list_race_name, force_start_list_url)
+        if start_list_file_id is None:
+            return None, start_list_url
+        
         final_df = self.app_model.match_start_list_and_pcm(pcm_database_id, start_list_file_id)
         start_list_race_id = self.app_model.insert_start_list_race_data(final_df, pcm_database_id, pcm_race_id, race_df.iloc[0]['pcm_race_name'], race_year, start_list_downloaded_at)
         df = self.app_model.get_start_list_data(start_list_race_id)
@@ -69,7 +71,7 @@ class AppAPI():
         logger.info(f"🎉 Created XML Start List at {out_path}")
         pcm_year = pcm_version.replace("PCM_","")
         logger.info(f"Next step: copy generated file into your PCM game directory: '%AppData%\Roaming\Pro Cycling Manager {pcm_year}\Cloud\Startlists\'")
-        return out_path
+        return out_path, start_list_url 
 
     def download_start_list(self, start_list_race_id):
         """Downloads the generated start list file
@@ -135,7 +137,6 @@ class AppAPI():
             return []
         return df.to_dict(orient='records')
     
-
     def get_race(self, pcm_database_id, pcm_race_id):
         """Retrieves PCM races
         :return:
@@ -147,7 +148,6 @@ class AppAPI():
             return None
         return df.to_dict(orient='records')[0]
 
-
     def get_pcm_races(self, pcm_database_id, race_name=None):
         """Retrieves PCM races
         :return:
@@ -156,7 +156,6 @@ class AppAPI():
         if df.empty:
             return []
         return df.to_dict(orient='records')
-
 
     def get_start_lists(self, pcm_database_id, pcm_race_id):
         """Retrieves start lists that have been generated along with the pcm database name

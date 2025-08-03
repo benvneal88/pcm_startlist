@@ -15,17 +15,21 @@ from utils import commons
 
 logger = logger_helper.get_logger(__name__)
 
-
-APP_DATABASE_FILE = os.path.join("src", "data", "dbs", "app", "v01.sqlite")
-APP_DATABASE_NAME = "pcm-startlist-generator"
 SCRAPER_DATA_SOURCE = "procyclingstats"
 
-# PostgreSQL configuration
-DATABASE_URL = os.getenv('DATABASE_URL', f'sqlite:///{APP_DATABASE_FILE}')
 
 def escape_text_sql(text):
     return text.replace("'", "''")  # Proper SQL escaping
 
+def clean_race_name(race_name):
+    """Cleans race_name by removing special characters and extra spaces"""
+    cleaned_race_name = race_name.split('/')[0].strip()  # Remove everything after the first slash
+    cleaned_race_name = cleaned_race_name.lower() # lowercase
+    cleaned_race_name = cleaned_race_name.replace("'", " ")
+    cleaned_race_name = cleaned_race_name.replace(" ", "-")
+    cleaned_race_name = cleaned_race_name.replace("--", "-")
+    logger.info(f"Cleaned race_name from '{race_name}' to '{cleaned_race_name}'")
+    return cleaned_race_name
 
 class TableName(Enum):
     PCM_DATABASE = "tbl_pcm_databases"
@@ -41,14 +45,15 @@ class TableName(Enum):
     START_LIST_RACES = "tbl_start_list_races"
     CYCLISTS = "tbl_cyclists"
     RACE_NAME_LOOKUP = "tbl_race_name_lookup"
+    RACE_INDEX_PCS = "tbl_race_index_pcs"
 
 class AppDatabase:
     """Interface to the application database."""
-    def __init__(self, db_file=APP_DATABASE_FILE, db_url=None):
-        self.db_file = db_file
-        self.db_url = db_url or DATABASE_URL
+    def __init__(self, db_url=None):
+        self.db_url = db_url
         self.connection = None
         self.scraper = None
+        self.race_index_pcs_updated = False
 
         self.connect()
         self.init_tables()
@@ -65,9 +70,9 @@ class AppDatabase:
                 self.connection.close()
             self.connection = None
 
-    def init_scraper(self, race_year, race_name, start_list_url=None):
+    def init_scraper(self, race_year, race_name, force_start_list_url=None):
         if self.scraper is None:
-            self.scraper = procyclingstats.ProCyclingStatsStartListScraper(race_year, race_name, start_list_url)
+            self.scraper = procyclingstats.ProCyclingStatsStartListScraper(race_year, race_name, force_start_list_url)
 
     def init_tables(self):
         """Initialize PostgreSQL tables"""
@@ -156,6 +161,7 @@ class AppDatabase:
                     year INTEGER NOT NULL,
                     pcm_race_id INTEGER NOT NULL,
                     pcm_database_id INTEGER NOT NULL,
+                    start_list_url TEXT NULL,
                     start_list_downloaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (pcm_database_id) REFERENCES {TableName.PCM_DATABASE.value} (id)
                          ON DELETE CASCADE
@@ -213,6 +219,15 @@ class AppDatabase:
                 )
             '''))
 
+            conn.execute(text(f'''
+                CREATE TABLE IF NOT EXISTS {TableName.RACE_INDEX_PCS.value}(
+                    id SERIAL PRIMARY KEY,
+                    class TEXT,
+                    name TEXT,
+                    url TEXT
+                )
+            '''))
+
             conn.commit()
     
         self.insert_lookups()
@@ -232,10 +247,20 @@ class AppDatabase:
                 )
                 conn.commit()
 
+    def update_race_index(self):
+        race_index_list = self.scraper.get_race_index()
+        df = pd.DataFrame(race_index_list)
+        self.logger.info(f"Inserting race index with {len(df)} rows")
+        df.to_sql(
+            name=TableName.RACE_INDEX_PCS.value,
+            con=self.connection,
+            if_exists="replace",
+            index=False
+        )
+
     def import_pcm_data(self, pcm_version, pcm_database_name):
         """Fetches and stages the data from the PCM database.
         """
-        
         # Create new row for the new PCM database
         db_table_name = TableName.PCM_DATABASE.value
         df = pd.DataFrame({
@@ -260,6 +285,10 @@ class AppDatabase:
 
         logger.info(f"✅ Imported PCM data for database '{pcm_database_name}' and PCM version '{pcm_version}' with pcm_database_id '{pcm_database_id}'")
         
+        if not self.race_index_pcs_updated:
+            self.update_race_index()
+            self.race_index_pcs_updated = True
+
     def insert_table(self, object_name, df):
         table_name = TableName[object_name].value
         logger.info(f"Inserting {len(df)} rows into table '{table_name}'")
@@ -272,11 +301,27 @@ class AppDatabase:
             method='multi'
         )
 
-    def download_and_stage_start_list(self, race_year, start_list_race_name, start_list_url=None, fetch_from_web=False):
+    def download_and_stage_start_list(self, race_year, start_list_race_name, force_start_list_url=None):
         """Downloads the start list from the web and inserts it into the database."""
-        self.init_scraper(race_year=race_year, race_name=start_list_race_name, start_list_url=start_list_url)
+        start_list_race_name = clean_race_name(start_list_race_name)
+        self.init_scraper(race_year=race_year, race_name=start_list_race_name, force_start_list_url=force_start_list_url)
 
-        start_list_url, start_list_file_path_html = self.scraper.fetch_start_list(fetch_from_web=fetch_from_web)
+        # update race index if needed
+        if not self.race_index_pcs_updated:
+            race_index_list = self.scraper.get_race_index()
+            df = pd.DataFrame(race_index_list)
+            df.to_sql(
+                name=TableName.RACE_INDEX_PCS.value,
+                con=self.connection,
+                if_exists="replace",
+                index=False
+            )
+            self.race_index_pcs_updated = True
+
+        start_list_url, start_list_file_path_html, is_success = self.scraper.fetch_start_list()
+        if not is_success:
+            logger.error(f"Failed to fetch start list from {start_list_url}")
+            return None, None, start_list_url
         start_list_downloaded_at = datetime.now()
 
         with open(start_list_file_path_html, "rb") as file:
@@ -284,7 +329,7 @@ class AppDatabase:
 
         if html_string is None or html_string == "":
             logger.error(f"No start list raw data in file!")
-            sys.exit(1)
+            return None, None, start_list_url
 
         logger.info(f"Inserting Start List raw data into table '{race_year}' - '{start_list_race_name}' - '{start_list_url}' - '{SCRAPER_DATA_SOURCE}'")
         row_dict = {
@@ -318,7 +363,7 @@ class AppDatabase:
         )
         
         logger.info(f"Added {len(df)} Start List cyclists into table '{TableName.START_LIST_CYCLISTS.value}'")
-        return start_list_file_id, start_list_downloaded_at
+        return start_list_file_id, start_list_downloaded_at, start_list_url
 
     def match_start_list_and_pcm(self, pcm_database_id, start_list_file_id):
         """Matches PCM start list with the given PCM database ID and start list file ID."""
@@ -526,6 +571,8 @@ class AppDatabase:
         
         # Use pandas for PostgreSQL
         df = pd.read_sql_query(query, self.connection)
+
+        # join to the race_index to get the url.  with sorted fuzzy logic.
         return df
 
     def get_start_lists(self, pcm_database_id=None, pcm_race_id=None):

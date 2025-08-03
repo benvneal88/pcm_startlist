@@ -59,7 +59,11 @@ def index():
         
         try:
             flash(f"Start list generation initiated for race {pcm_race_id} in year {race_year}", 'success')
-            generated_file_path = api.generate_start_list(pcm_database_id, pcm_race_id, race_year, start_list_race_name, start_list_url)
+            generated_file_path, start_list_url = api.generate_start_list(pcm_database_id, pcm_race_id, race_year, start_list_race_name, start_list_url)
+            if generated_file_path:
+                flash(f"Start list generated successfully: {generated_file_path}", 'success')
+            else:
+                flash(f"Failed to generate start list. Please check the URL: {start_list_url}", 'error')
             return redirect(url_for('index', pcm_database_id=pcm_database_id, pcm_race_id=pcm_race_id))
         except Exception as e:
             logger.error(f"Error generating start list: {str(e)}")
@@ -180,10 +184,12 @@ def view_start_list(start_list_race_id):
         
         logger.info(f"Serving view for file: {filename}")
         
-        # Render HTML template with XML content
-        return render_template('view_xml.html', 
-                             filename=filename, 
-                             xml_content=file_content)
+        # Return the XML content with proper content type for browser display
+        return Response(
+            file_content,
+            mimetype='application/xml',
+            headers={'Content-Disposition': f'inline; filename="{filename}"'}
+        )
         
     except Exception as e:
         logger.error(f"Error viewing start list: {str(e)}")
@@ -191,7 +197,5 @@ def view_start_list(start_list_race_id):
         return redirect(url_for('index'))
 
 if __name__ == '__main__':
-    logger.info(f"Starting application on port {commons.APP_PORT}")
-    app.run(debug=False, host='0.0.0.0', port=commons.APP_PORT)
     logger.info(f"Starting application on port {commons.APP_PORT}")
     app.run(debug=False, host='0.0.0.0', port=commons.APP_PORT)
