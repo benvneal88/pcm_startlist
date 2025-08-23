@@ -248,9 +248,9 @@ class AppDatabase:
                 conn.commit()
 
     def update_race_index(self):
-        race_index_list = self.scraper.get_race_index()
+        race_index_list = procyclingstats.get_race_index()
         df = pd.DataFrame(race_index_list)
-        self.logger.info(f"Inserting race index with {len(df)} rows")
+        logger.info(f"Inserting race index with {len(df)} rows")
         df.to_sql(
             name=TableName.RACE_INDEX_PCS.value,
             con=self.connection,
@@ -258,7 +258,7 @@ class AppDatabase:
             index=False
         )
 
-    def import_pcm_data(self, pcm_version, pcm_database_name):
+    def import_pcm_data(self, pcm_version, pcm_database_name, db_file_name=None):
         """Fetches and stages the data from the PCM database.
         """
         # Create new row for the new PCM database
@@ -267,7 +267,7 @@ class AppDatabase:
             "pcm_database_name": [pcm_database_name],
             "pcm_version": [pcm_version]
         })
-        logger.info(f"Inserting row into table '{db_table_name}'")
+        logger.debug(f"Inserting row into table '{db_table_name}'")
         df.to_sql(
             name=db_table_name,
             con=self.connection,
@@ -276,7 +276,7 @@ class AppDatabase:
         )
 
         pcm_database_id = self.get_pcm_database_id(pcm_version, pcm_database_name)
-        pcm_db = pcm_api.PCMDatabase(pcm_database_name, pcm_version)
+        pcm_db = pcm_api.PCMDatabase(pcm_database_name, pcm_version, db_file_name=db_file_name)
         for pcm_object in commons.PCMTableName:
             df = pcm_db.get_pcm_object(table_name=pcm_object.value)
             df["pcm_database_id"] = pcm_database_id

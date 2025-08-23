@@ -29,6 +29,8 @@ Configure and Launch the Web App
 6. When done stop the app with Docker Desktop or issuing a `ctrl+c` in terminal/command prompt 
 
 
+To start over and delete your local startlist database delete the docker volume for the database - `pcm_startlist_backend-db-vol`
+
 ## Export Custom PCM Database
 
 To add a custom PCM database that isn't already provided by ~~default~~, first export the PCM database to a SQLite file
@@ -39,6 +41,7 @@ To add a custom PCM database that isn't already provided by ~~default~~, first e
    1. `SQLiteExporter.exe -export "Pro Cycling Manager <edition>\Cloud\<your_username>\Career_1.cdb"`
 4. Rename the the newly generated `Career_1.sqlite` file to a descriptive name of the PCM database and year `WORLDDB_2023.sqlite`
 5. The PCM database can be imported using the Web App
+
 
 
 ## Contributing

@@ -1,5 +1,6 @@
 
 import os
+import re
 from enum import Enum
 
 APP_PORT = 5000
@@ -37,3 +38,25 @@ PCM_DATABASE_MAPPINGS = {
 }
 
 PCM_VERSIONS = list(PCM_DATABASE_MAPPINGS.keys())
+
+
+def get_app_version():
+    """Get the application version from setup.py"""
+    try:
+        # Get the path to the setup.py file (go up from src/utils to root)
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        root_dir = os.path.dirname(os.path.dirname(current_dir))
+        setup_path = os.path.join(root_dir, 'setup.py')
+        
+        if os.path.exists(setup_path):
+            with open(setup_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+                # Use regex to find version string
+                version_match = re.search(r"version\s*=\s*['\"]([^'\"]+)['\"]", content)
+                if version_match:
+                    return version_match.group(1)
+        
+        # Fallback if setup.py is not found or version not found
+        return "dev"
+    except Exception:
+        return "unknown"

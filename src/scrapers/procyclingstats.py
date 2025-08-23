@@ -25,6 +25,44 @@ def parse_race_index_page(get_race_index_url, class_name):
             race_index.append({"url": href, "name": link.text.strip(), "class": class_name})
     return race_index
 
+def get_race_index() -> List[Dict]:
+    """Fetches race name to race url associations to pull start lists from"""
+    race_filters = [
+        {
+            "class": "2.Pro",
+            "category": "1",
+        },
+        {
+            "class": "2.UWT",
+            "category": "1",
+        },
+        {
+            "class": "2.1",
+            "category": "1",
+        },
+        {
+            "class": "2.2",
+            "category": "1",
+        },
+        {
+            "class": "2.HC",
+            "category": "1",
+        },
+        {
+            "class": "1.Pro",
+            "category": "1",
+        }  
+    ]
+    logger.info(f"Fetching race index from Pro Cycling Stats:\n {race_filters}")
+
+    race_index = []
+    for race_filter in race_filters:
+        sleep(1)  # To avoid hitting the server too fast
+        race_index_url = f"https://www.procyclingstats.com/races.php?s=races-database&name=&nation=&class={race_filter.get('class', '')}&category={race_filter.get('category', '')}&year=&season=&month=&filter=Filter"
+        logger.info(f"Fetching race index from {race_index_url}")
+        race_index.extend(parse_race_index_page(race_index_url, race_filter.get('class', '')))
+    return race_index
+
 class ProCyclingStatsStartListScraper(StartListScraper):
     def __init__(self, race_year, race_name, force_start_list_url=None):
         super().__init__(data_source_name="procyclingstats", race_year=race_year, race_name=race_name, force_start_list_url=force_start_list_url)
@@ -105,40 +143,4 @@ class ProCyclingStatsStartListScraper(StartListScraper):
 
         return df
 
-    def get_race_index() -> List[Dict]:
-        """Fetches race name to race url associations to pull start lists from"""
-        race_filters = [
-            {
-                "class": "2.Pro",
-                "category": "1",
-            },
-            {
-                "class": "2.UWT",
-                "category": "1",
-            },
-            {
-                "class": "2.1",
-                "category": "1",
-            },
-            {
-                "class": "2.2",
-                "category": "1",
-            },
-            {
-                "class": "2.HC",
-                "category": "1",
-            },
-            {
-                "class": "1.Pro",
-                "category": "1",
-            }  
-        ]
-        logger.info(f"Fetching race index from Pro Cycling Stats:\n {race_filters}")
-
-        race_index = []
-        for race_filter in race_filters:
-            sleep(1)  # To avoid hitting the server too fast
-            race_index_url = f"https://www.procyclingstats.com/races.php?s=races-database&name=&nation=&class={race_filter.get('class', '')}&category={race_filter.get('category', '')}&year=&season=&month=&filter=Filter"
-            logger.info(f"Fetching race index from {race_index_url}")
-            race_index.extend(parse_race_index_page(race_index_url, race_filter.get('class', '')))
-        return race_index
+    

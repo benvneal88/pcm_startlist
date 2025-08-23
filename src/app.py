@@ -13,6 +13,11 @@ app.secret_key = 'your-secret-key-here'  # Change this in production
 
 api = AppAPI()
 
+@app.context_processor
+def inject_version():
+    """Make app version available to all templates"""
+    return {'app_version': commons.get_app_version()}
+
 @app.route('/import_database', methods=['POST'])
 def import_database():
     """Handle database import from modal"""
@@ -24,22 +29,45 @@ def import_database():
     try:
         if existing_file:
             # Use existing file from PCM directory
-            api.import_pcm_database(pcm_version, pcm_database_name)
+            api.import_pcm_database(pcm_version, pcm_database_name, db_file_name=existing_file)
             flash(f"Successfully imported database '{pcm_database_name}' from '{existing_file}' for PCM {pcm_version}", 'success')
         elif uploaded_file and uploaded_file.filename:
             # Save uploaded file to PCM_DATABASE_PATH
             upload_path = os.path.join(commons.PCM_DATABASE_PATH, uploaded_file.filename)
             uploaded_file.save(upload_path)
-            
-            api.import_pcm_database(pcm_version, pcm_database_name)
+
+            api.import_pcm_database(pcm_version, pcm_database_name, db_file_name=upload_path)
             flash(f"Successfully imported database '{pcm_database_name}' from uploaded file '{uploaded_file.filename}' for PCM {pcm_version}", 'success')
         else:
             flash("Please select a database file", 'error')
             
         return redirect(url_for('index'))
+    except FileNotFoundError as e:
+        logger.error(f"Database file not found: {str(e)}")
+        flash(f"Database file not found. Please check that the selected file exists and is accessible.", 'error')
+        return redirect(url_for('index'))
+    except ValueError as e:
+        logger.error(f"Invalid database file: {str(e)}")
+        flash(f"{str(e)}", 'error')
+        return redirect(url_for('index'))
+    except PermissionError as e:
+        logger.error(f"Permission error accessing database: {str(e)}")
+        flash(f"Permission denied accessing the database file. Please check file permissions.", 'error')
+        return redirect(url_for('index'))
     except Exception as e:
         logger.error(f"Error importing database: {str(e)}")
-        flash(f"Error importing database: {str(e)}", 'error')
+        # Provide more user-friendly error messages for common issues
+        error_msg = str(e)
+        if "no such table" in error_msg.lower():
+            error_msg = "Invalid PCM database file. The selected file does not contain the expected PCM database tables."
+        elif "database is locked" in error_msg.lower():
+            error_msg = "Database file is currently in use. Please close any PCM applications and try again."
+        elif "not a database" in error_msg.lower():
+            error_msg = "Invalid file format. Please select a valid SQLite database file."
+        else:
+            error_msg = f"Error importing database: {error_msg}"
+        
+        flash(error_msg, 'error')
         return redirect(url_for('index'))
 
 @app.route('/', methods=['GET', 'POST'])

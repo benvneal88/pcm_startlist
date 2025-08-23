@@ -107,14 +107,13 @@ class AppAPI():
             logger.error(f"Error in download_start_list: {str(e)}")
             return None
 
-    def import_pcm_database(self, pcm_version, pcm_database_name):
+    def import_pcm_database(self, pcm_version, pcm_database_name, db_file_name=None):
         """Loads the PCM database into the app instance
 
         :param pcm_database_name: The name of the PCM database
         :param pcm_version: The version of PCM video game
         """
-
-        self.app_model.import_pcm_data(pcm_version, pcm_database_name)
+        self.app_model.import_pcm_data(pcm_version, pcm_database_name, db_file_name=db_file_name)
 
     def get_pcm_database(self, pcm_database_id):
         """Retrieves PCM databases that have been loaded

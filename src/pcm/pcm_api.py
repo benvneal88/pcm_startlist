@@ -42,22 +42,44 @@ def get_xml_start_list(df):
 
 
 class PCMDatabase:
-    def __init__(self, database_name, pcm_version):
+    def __init__(self, database_name, pcm_version, db_file_name=None):
         """Extracts the required data from the PCM database."""
         assert pcm_version in commons.PCM_VERSIONS
         self.pcm_version = pcm_version
         self.database_name = database_name
-        self.database_file_path = os.path.join(os.getcwd(), commons.PCM_DATABASE_PATH, f"{self.database_name}.sqlite")
+        self.database_file_path = os.path.join(os.getcwd(), commons.PCM_DATABASE_PATH, db_file_name) if db_file_name else os.path.join(os.getcwd(), commons.PCM_DATABASE_PATH, f"{self.database_name}.sqlite")
         if self.database_file_exists():
             self.connection = database_helper.get_database_connection(self.database_file_path)
         else:
-            sys.exit(1)
+            raise FileNotFoundError(f"PCM Database file not found at: {self.database_file_path}")
 
     def database_file_exists(self):
         if os.path.exists(self.database_file_path):
             logger.info(f"✅ PCM Database {self.database_name} exists at {self.database_file_path}")
-            return True
-        logger.info(f"❌ PCM Database {self.database_name} does not exist at {self.database_file_path}")
+            # Additional validation - check if it's a valid SQLite file
+            try:
+                import sqlite3
+                conn = sqlite3.connect(self.database_file_path)
+                cursor = conn.cursor()
+                
+                # Check if required PCM tables exist
+                required_tables = list(commons.PCM_DATABASE_MAPPINGS.get(self.pcm_version, {}).keys())
+                if required_tables:
+                    for table_name in required_tables:
+                        cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}';")
+                        if not cursor.fetchone():
+                            conn.close()
+                            raise ValueError(f"Required PCM table '{table_name}' not found in database. This may not be a valid PCM {self.pcm_version} database file.")
+                
+                conn.close()
+                return True
+            except sqlite3.Error as e:
+                logger.error(f"❌ SQLite error: {e}")
+                raise ValueError(f"Invalid SQLite database file: {self.database_file_path}")
+            except Exception as e:
+                logger.error(f"❌ Database validation error: {e}")
+                raise
+        logger.error(f"❌ PCM Database {self.database_name} does not exist at {self.database_file_path}")
         return False
 
     def close_connection(self):
