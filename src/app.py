@@ -224,6 +224,52 @@ def view_start_list(start_list_race_id):
         flash(f"Error viewing start list: {str(e)}", 'error')
         return redirect(url_for('index'))
 
+@app.route('/debug', methods=['GET', 'POST'])
+def debug():
+    """Debug page for running SQL queries"""
+    query_result = None
+    error_message = None
+    query = ""
+    
+    if request.method == 'POST':
+        query = request.form.get('query', '').strip()
+        
+        if not query:
+            error_message = "Please enter a SQL query"
+        else:
+            try:
+                # Use the database connection from the API
+                from utils import database_helper
+                result = database_helper.run_query(api.app_model.connection, query)
+                
+                if result:
+                    # Convert to pandas DataFrame for better display
+                    import pandas as pd
+                    query_result = pd.DataFrame(result)
+                else:
+                    query_result = "Query executed successfully (no results returned)"
+                    
+            except Exception as e:
+                error_message = f"Query error: {str(e)}"
+                logger.error(f"Debug query error: {str(e)}")
+    
+    # Get some helpful information about the database
+    try:
+        table_info = database_helper.run_query(
+            api.app_model.connection, 
+            "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name"
+        )
+        tables = [row['table_name'] for row in table_info] if table_info else []
+    except Exception as e:
+        tables = []
+        logger.error(f"Error getting table list: {str(e)}")
+    
+    return render_template('debug.html', 
+                         query=query, 
+                         query_result=query_result, 
+                         error_message=error_message,
+                         tables=tables)
+
 if __name__ == '__main__':
     logger.info(f"Starting application on port {commons.APP_PORT}")
     app.run(debug=False, host='0.0.0.0', port=commons.APP_PORT)

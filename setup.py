@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='pcm_startlist',
-    version='0.2.0',
+    version='0.2.1',
     author='benvneal88',
     author_email='benvneal88@example.com',
     description='A Python package for generating start lists for Pro Cycling Manager from online data.',

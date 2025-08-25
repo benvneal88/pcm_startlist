@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+
+{% block title %}Debug - SQL Query Tool{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-12">
+            <h2>
+                <span class="badge bg-warning text-dark">🐛</span>
+                Database Debug Tool
+            </h2>
+            <p class="text-muted">Run SQL queries against the application database for debugging purposes.</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Query Form -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">SQL Query</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="query" class="form-label">Enter SQL Query:</label>
+                            <textarea class="form-control" id="query" name="query" rows="8" 
+                                      placeholder="SELECT * FROM tbl_pcm_databases;"
+                                      style="font-family: 'Courier New', monospace;">{{ query }}</textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-play"></i> Execute Query
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="clearQuery()">
+                            <i class="fas fa-eraser"></i> Clear
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Database Info -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Available Tables</h6>
+                </div>
+                <div class="card-body">
+                    {% if tables %}
+                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                        <table class="table table-sm">
+                            <tbody>
+                                {% for table in tables %}
+                                <tr>
+                                    <td>
+                                        <small>
+                                            <a href="#" onclick="setQuery('SELECT * FROM {{ table }} LIMIT 10;')" 
+                                               class="text-decoration-none">
+                                                {{ table }}
+                                            </a>
+                                        </small>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No tables found</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Quick Queries -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="mb-0">Quick Queries</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-secondary btn-sm" 
+                                onclick="setQuery('SELECT pcm_database_name, pcm_version, created_at FROM tbl_pcm_databases ORDER BY created_at DESC;')">
+                            List PCM Databases
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" 
+                                onclick="setQuery('SELECT COUNT(*) as total_races FROM tbl_pcm_races;')">
+                            Count PCM Races
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" 
+                                onclick="setQuery('SELECT COUNT(*) as total_cyclists FROM tbl_pcm_cyclists;')">
+                            Count PCM Cyclists
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" 
+                                onclick="setQuery('SELECT race_name, race_year, matched_count, unmatched_count FROM start_list_view GROUP BY race_name, race_year, matched_count, unmatched_count ORDER BY race_year DESC;')">
+                            Start List Summary
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Query Results -->
+    {% if error_message %}
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="alert alert-danger">
+                <h6>Error:</h6>
+                <pre>{{ error_message }}</pre>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if query_result is not none %}
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Query Results</h5>
+                    {% if query_result is string %}
+                    <span class="badge bg-success">Success</span>
+                    {% else %}
+                    <span class="badge bg-info">{{ query_result|length }} rows</span>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if query_result is string %}
+                    <p class="mb-0">{{ query_result }}</p>
+                    {% else %}
+                    {% if query_result.empty %}
+                    <p class="text-muted mb-0">No results returned</p>
+                    {% else %}
+                    <div class="table-responsive" style="max-height: 500px; overflow: auto;">
+                        {{ query_result.to_html(classes='table table-striped table-sm', table_id='results-table', escape=False)|safe }}
+                    </div>
+                    <div class="mt-2">
+                        <small class="text-muted">
+                            Showing {{ query_result|length }} rows × {{ query_result.columns|length }} columns
+                        </small>
+                    </div>
+                    {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Warning Notice -->
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="alert alert-warning">
+                <h6>⚠️ Warning:</h6>
+                <ul class="mb-0">
+                    <li>This is a debug tool for development purposes only</li>
+                    <li>Be careful with UPDATE, DELETE, and DROP statements</li>
+                    <li>Large result sets may cause browser performance issues</li>
+                    <li>Use LIMIT clause for SELECT queries on large tables</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function setQuery(query) {
+    document.getElementById('query').value = query;
+}
+
+function clearQuery() {
+    document.getElementById('query').value = '';
+}
+
+// Add syntax highlighting and better formatting
+document.addEventListener('DOMContentLoaded', function() {
+    const queryTextarea = document.getElementById('query');
+    
+    // Auto-resize textarea
+    queryTextarea.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = (this.scrollHeight) + 'px';
+    });
+    
+    // Add keyboard shortcuts
+    queryTextarea.addEventListener('keydown', function(e) {
+        // Ctrl+Enter to execute query
+        if (e.ctrlKey && e.key === 'Enter') {
+            e.preventDefault();
+            document.querySelector('form').submit();
+        }
+        
+        // Tab to insert spaces instead of focus change
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            const start = this.selectionStart;
+            const end = this.selectionEnd;
+            this.value = this.value.substring(0, start) + '    ' + this.value.substring(end);
+            this.selectionStart = this.selectionEnd = start + 4;
+        }
+    });
+});
+</script>
+
+<style>
+#results-table {
+    font-size: 0.85em;
+}
+
+#results-table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.table-responsive {
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+}
+
+textarea#query {
+    resize: vertical;
+    min-height: 150px;
+}
+</style>
+{% endblock %}

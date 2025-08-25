@@ -31,6 +31,76 @@ def clean_race_name(race_name):
     logger.info(f"Cleaned race_name from '{race_name}' to '{cleaned_race_name}'")
     return cleaned_race_name
 
+def fuzzy_match_race_names(pcm_races_list, url_races_list, confidence_threshold=80):
+    """
+    Static function to perform fuzzy matching between PCM race names and URL race names
+    
+    Args:
+        pcm_races_list: List of dicts with keys ['id', 'name'] for PCM races
+        url_races_list: List of dicts with keys ['id', 'name', 'url'] for URL races
+        confidence_threshold: Minimum confidence score for a match (default 80)
+    
+    Returns:
+        tuple: (matches_df, unmatched_df) - DataFrames with match results
+    """
+    
+    logger.info(f"Starting fuzzy matching with {len(pcm_races_list)} PCM races and {len(url_races_list)} URL races")
+    pcm_names = [race['name'] for race in pcm_races_list]
+
+    matches = []
+    unmatched = []
+    
+    for url_race in url_races_list:
+        url_name = url_race['name']
+        
+        # Try different fuzzy matching approaches
+        match_methods = [
+            ('ratio', fuzz.ratio),
+            ('partial_ratio', fuzz.partial_ratio),
+            ('token_sort_ratio', fuzz.token_sort_ratio),
+            ('token_set_ratio', fuzz.token_set_ratio)
+        ]
+        
+        best_match = None
+        best_score = 0
+        best_method = None
+        
+        for method_name, scorer in match_methods:
+            match = process.extractOne(url_name, pcm_names, scorer=scorer)
+            if match and match[1] > best_score:
+                best_match = match
+                best_score = match[1]
+                best_method = method_name
+        
+        if best_match and best_score >= confidence_threshold:
+            # Find the corresponding PCM race
+            pcm_race = next((r for r in pcm_races_list if r['name'] == best_match[0]), None)
+            if pcm_race:
+                matches.append({
+                    'pcm_race_id': pcm_race['pcm_race_id'],
+                    'pcm_race_name': pcm_race['name'],
+                    'url_race_name': url_name,
+                    'url_path': url_race.get('url', ''),
+                    'confidence': best_score,
+                    'match_method': best_method
+                })
+        else:
+            unmatched.append({
+                'url_race_name': url_name,
+                'url_path': url_race.get('url', ''),
+                'best_match_name': best_match[0] if best_match else 'None',
+                'best_confidence': best_score,
+                'best_method': best_method
+            })
+    
+    matches_df = pd.DataFrame(matches)
+    unmatched_df = pd.DataFrame(unmatched)
+    
+    logger.info(f"Fuzzy matching completed: {len(matches)} matches, {len(unmatched)} unmatched")
+    
+    return matches_df, unmatched_df
+
+
 class TableName(Enum):
     PCM_DATABASE = "tbl_pcm_databases"
     PCM_TEAM = "tbl_pcm_teams"
@@ -70,9 +140,9 @@ class AppDatabase:
                 self.connection.close()
             self.connection = None
 
-    def init_scraper(self, race_year, race_name, force_start_list_url=None):
+    def init_scraper(self, race_year, race_name, force_start_list_url=None, race_index_base_url=None):
         if self.scraper is None:
-            self.scraper = procyclingstats.ProCyclingStatsStartListScraper(race_year, race_name, force_start_list_url)
+            self.scraper = procyclingstats.ProCyclingStatsStartListScraper(race_year, race_name, force_start_list_url, race_index_base_url)
 
     def init_tables(self):
         """Initialize PostgreSQL tables"""
@@ -120,6 +190,7 @@ class AppDatabase:
                     race_name TEXT NOT NULL,
                     race_abbrreviation TEXT NOT NULL,
                     file_name TEXT NOT NULL,
+                    race_url_pcs TEXT NULL,
                     FOREIGN KEY (pcm_database_id) REFERENCES {TableName.PCM_DATABASE.value} (id)
                          ON DELETE CASCADE
                          ON UPDATE NO ACTION
@@ -250,14 +321,14 @@ class AppDatabase:
     def update_race_index(self):
         race_index_list = procyclingstats.get_race_index()
         df = pd.DataFrame(race_index_list)
-        logger.info(f"Inserting race index with {len(df)} rows")
+        logger.info(f"Updating race index with {len(df)} items")
         df.to_sql(
             name=TableName.RACE_INDEX_PCS.value,
             con=self.connection,
             if_exists="replace",
             index=False
         )
-
+        
     def import_pcm_data(self, pcm_version, pcm_database_name, db_file_name=None):
         """Fetches and stages the data from the PCM database.
         """
@@ -285,9 +356,8 @@ class AppDatabase:
 
         logger.info(f"✅ Imported PCM data for database '{pcm_database_name}' and PCM version '{pcm_version}' with pcm_database_id '{pcm_database_id}'")
         
-        if not self.race_index_pcs_updated:
-            self.update_race_index()
-            self.race_index_pcs_updated = True
+        self.update_race_index()
+        self.update_start_list_urls(pcm_database_id)
 
     def insert_table(self, object_name, df):
         table_name = TableName[object_name].value
@@ -301,22 +371,11 @@ class AppDatabase:
             method='multi'
         )
 
-    def download_and_stage_start_list(self, race_year, start_list_race_name, force_start_list_url=None):
+    def download_and_stage_start_list(self, race_year, start_list_race_name, force_start_list_url=None, race_index_base_url=None):
         """Downloads the start list from the web and inserts it into the database."""
         start_list_race_name = clean_race_name(start_list_race_name)
-        self.init_scraper(race_year=race_year, race_name=start_list_race_name, force_start_list_url=force_start_list_url)
 
-        # update race index if needed
-        if not self.race_index_pcs_updated:
-            race_index_list = self.scraper.get_race_index()
-            df = pd.DataFrame(race_index_list)
-            df.to_sql(
-                name=TableName.RACE_INDEX_PCS.value,
-                con=self.connection,
-                if_exists="replace",
-                index=False
-            )
-            self.race_index_pcs_updated = True
+        self.init_scraper(race_year=race_year, race_name=start_list_race_name, force_start_list_url=force_start_list_url, race_index_base_url=race_index_base_url)
 
         start_list_url, start_list_file_path_html, is_success = self.scraper.fetch_start_list()
         if not is_success:
@@ -516,6 +575,95 @@ class AppDatabase:
         logger.info(f"Inserted {len(cyclists_df)} cyclists into the table '{TableName.CYCLISTS.value}'")
         return start_list_race_id
 
+    def update_start_list_urls(self, pcm_database_id):
+        """Updates the start list URLs in the database using fuzzy matching."""
+        logger.info(f"Updating start list URLs for PCM database ID: {pcm_database_id}")
+        
+        # Get race URLs from race index
+        df_race_urls = pd.read_sql_query(f"SELECT * FROM {TableName.RACE_INDEX_PCS.value}", self.connection)
+        
+        # Get PCM races for this database
+        df_pcm_races = self.get_pcm_races(pcm_database_id)
+        
+        if df_race_urls.empty:
+            logger.warning("No race URLs found in race index")
+            return
+            
+        if df_pcm_races.empty:
+            logger.warning(f"No PCM races found for database ID {pcm_database_id}")
+            return
+        
+        logger.info(f"Found {len(df_race_urls)} URL races and {len(df_pcm_races)} PCM races")
+        
+        # Convert DataFrames to lists for fuzzy matching
+        pcm_races_list = []
+        for _, row in df_pcm_races.iterrows():
+            pcm_races_list.append({
+                'pcm_race_id': row['pcm_race_id'],
+                'name': row['race_name']
+            })
+        
+        url_races_list = []
+        for _, row in df_race_urls.iterrows():
+            url_races_list.append({
+                'name': row['name'],
+                'url': row['url'] if 'url' in row else None
+            })
+        
+        # Perform fuzzy matching
+        matches_df, unmatched_df = fuzzy_match_race_names(pcm_races_list, url_races_list, confidence_threshold=75)
+        
+        if matches_df.empty:
+            logger.warning("No fuzzy matches found between PCM races and URL races")
+            return
+        
+        logger.info(f"Found {len(matches_df)} fuzzy matches, {len(unmatched_df)} unmatched")
+        
+        # Update PCM races with matched URLs
+        update_count = 0
+        with self.connection.connect() as conn:
+            for _, match in matches_df.iterrows():
+                pcm_race_id = match['pcm_race_id']
+                url_path = match['url_path']
+                confidence = match['confidence']
+                match_method = match['match_method']
+                
+                # Construct the full URL if it's a relative path
+                if url_path and not url_path.startswith('http'):
+                    if url_path.startswith('race/'):
+                        full_url = f"https://www.procyclingstats.com/{url_path}"
+                    else:
+                        full_url = f"https://www.procyclingstats.com/race/{url_path}"
+                else:
+                    full_url = url_path
+                
+                # Update the PCM race with the URL
+                update_sql = text(f"""
+                    UPDATE {TableName.PCM_RACE.value} 
+                    SET race_url_pcs = :url 
+                    WHERE pcm_database_id = :pcm_database_id 
+                    AND race_id = :race_id
+                """)
+                result = conn.execute(update_sql, {
+                    'url': full_url,
+                    'pcm_database_id': int(pcm_database_id),
+                    'race_id': int(pcm_race_id)
+                })
+                
+                if result.rowcount > 0:
+                    update_count += 1
+                    logger.info(f"Updated race ID {pcm_race_id} with URL: {full_url} (confidence: {confidence}%, method: {match_method})")
+            
+            conn.commit()
+        
+        logger.info(f"Successfully updated {update_count} PCM races with URLs")
+        
+        # Log some examples of unmatched races for manual review
+        if not unmatched_df.empty:
+            logger.warning(f"Unmatched PCM races ({len(unmatched_df)}) - consider manual mapping:")
+            for _, unmatched in unmatched_df.head(10).iterrows():
+                logger.warning(f"  '{unmatched['url_race_name']}' -> best match: '{unmatched['best_match_name']}' ({unmatched['best_confidence']}%)")
+
     def get_pcm_database(self, pcm_database_id):
         """Returns a DataFrame with all PCM databases."""
         query = f"SELECT id as pcm_database_id, pcm_database_name, pcm_version, created_at FROM {TableName.PCM_DATABASE.value} WHERE id = {pcm_database_id}"
@@ -550,14 +698,13 @@ class AppDatabase:
     def get_race(self, pcm_database_id, pcm_race_id):
         filter_clause = f" WHERE pcm_database_id = {pcm_database_id} AND race_id = {pcm_race_id}"
         query = f"""
-            SELECT pcm.pcm_database_id, pcm.race_id as pcm_race_id, pcm.race_name as pcm_race_name, COALESCE(race_name_lookup.start_list_race_name, pcm.race_name) as start_list_race_name, pcm.race_abbrreviation, pcm.file_name 
+            SELECT pcm.pcm_database_id, pcm.race_id as pcm_race_id, pcm.race_name as pcm_race_name, COALESCE(race_name_lookup.start_list_race_name, pcm.race_name) as start_list_race_name, pcm.race_abbrreviation, pcm.file_name, pcm.race_url_pcs 
             FROM {TableName.PCM_RACE.value} pcm
                 LEFT JOIN {TableName.RACE_NAME_LOOKUP.value} race_name_lookup ON pcm.race_name = race_name_lookup.pcm_race_name
             {filter_clause} 
             ORDER BY pcm.race_name
         """
         logger.debug(f"Fetching PCM race with query {query}")
-        #logger.info(pd.read_sql_query(f"select * from {TableName.RACE_NAME_LOOKUP.value}", self.connection))
         df = pd.read_sql_query(query, self.connection)
         return df
 
@@ -565,14 +712,9 @@ class AppDatabase:
         filter_clause = f" WHERE pcm_database_id = {pcm_database_id}"
         if race_name:
             filter_clause += f" AND race_name ILIKE '%%{escape_text_sql(race_name)}%%'"
-        
-        query = f"SELECT pcm_database_id, race_id as pcm_race_id, race_name, race_abbrreviation, file_name FROM {TableName.PCM_RACE.value} {filter_clause} ORDER BY race_name"
+        query = f"SELECT pcm_database_id, race_id as pcm_race_id, race_name, race_abbrreviation, file_name, race_url_pcs FROM {TableName.PCM_RACE.value} {filter_clause} ORDER BY race_name"
         logger.info(f"Fetching PCM races with query {query}")
-        
-        # Use pandas for PostgreSQL
         df = pd.read_sql_query(query, self.connection)
-
-        # join to the race_index to get the url.  with sorted fuzzy logic.
         return df
 
     def get_start_lists(self, pcm_database_id=None, pcm_race_id=None):
@@ -632,4 +774,9 @@ class AppDatabase:
         """
         logger.debug(query)
         return pd.read_sql_query(query, self.connection)
+    
+    def execute_debug_query(self, query):
+        """Execute a debug query and return results"""
+        from utils import database_helper
+        return database_helper.run_query(self.connection, query)
     

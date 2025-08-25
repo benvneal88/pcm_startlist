@@ -38,9 +38,10 @@ def download_file(url: str, save_file_path):
     return True
 
 class StartListScraper(ABC):
-    def __init__(self, data_source_name, race_year: int = None, race_name: str = None, force_start_list_url: str = None):
+    def __init__(self, data_source_name, race_year: int = None, race_name: str = None, force_start_list_url: str = None, race_index_base_url: str = None):
         self.race_year = race_year
         self.race_name = race_name
+        self.race_index_base_url = race_index_base_url
         if (not self.race_name or not self.race_year) and not force_start_list_url:
             logger.error("You must provide either race_name and race_year or force_start_list_url to the StartListScraper")
             sys.exit(1)
@@ -91,6 +92,3 @@ class StartListScraper(ABC):
 
         return self.start_list_url, start_list_raw_file_path, is_success
 
-    @abstractmethod
-    def get_race_index(self) -> List[Dict]:
-        pass

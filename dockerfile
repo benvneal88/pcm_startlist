@@ -16,8 +16,8 @@ RUN apt-get update && \
 # Set the working directory
 WORKDIR /PCMStartListApp
 
-# Copy requirements file
 COPY requirements.txt .
+COPY setup.py .
 
 # Install the Python dependencies
 RUN pip install --upgrade pip

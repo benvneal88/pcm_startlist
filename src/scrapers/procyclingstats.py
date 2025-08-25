@@ -1,5 +1,6 @@
 from time import sleep
 from typing import List, Dict
+import re
 import requests
 from bs4 import BeautifulSoup
 import pandas
@@ -9,25 +10,7 @@ from utils import logger_helper
 
 logger = logger_helper.get_logger(__name__)
 
-
-def parse_race_index_page(get_race_index_url, class_name):
-    logger.info(f"Fetching race data from '{get_race_index_url}'")
-    race_index = []
-    response = requests.get(get_race_index_url)
-    if response.status_code != 200:
-        logger.error(f"Failed to retrieve race data from {get_race_index_url}")
-        return race_index
-    
-    soup = BeautifulSoup(response.text, "html.parser")
-    for link in soup.find_all("a"):
-        href = link.get("href")
-        if href and "race/" in href:
-            race_index.append({"url": href, "name": link.text.strip(), "class": class_name})
-    return race_index
-
-def get_race_index() -> List[Dict]:
-    """Fetches race name to race url associations to pull start lists from"""
-    race_filters = [
+RACE_INDEX_SOURCES = [
         {
             "class": "2.Pro",
             "category": "1",
@@ -51,12 +34,47 @@ def get_race_index() -> List[Dict]:
         {
             "class": "1.Pro",
             "category": "1",
-        }  
+        }
     ]
-    logger.info(f"Fetching race index from Pro Cycling Stats:\n {race_filters}")
+
+def parse_race_index_page(get_race_index_url, class_name):
+    logger.info(f"Fetching race data from '{get_race_index_url}'")
+    race_index = []
+    response = requests.get(get_race_index_url)
+    if response.status_code != 200:
+        logger.error(f"Failed to retrieve race data from {get_race_index_url}")
+        return race_index
+    
+    # Regex pattern to match valid race URLs
+    # Matches: race/race-name, race/race-name/year, race/race-name/year/overview
+    # Excludes: race/race-name/year/startlist/*, race/race-name/year/teams/*, etc.
+    valid_race_url_pattern = re.compile(r'^race/[^/]+(?:/\d{4}(?:/overview)?)?$')
+    
+    soup = BeautifulSoup(response.text, "html.parser")
+    for link in soup.find_all("a"):
+        href = link.get("href")
+        if href and "race/" in href:
+            url = href
+            
+            # Apply regex filter to exclude unwanted subpages
+            if valid_race_url_pattern.match(url):
+                # Remove year and overview from URL (e.g., "/2025" or "/2025/overview")
+                # This normalizes URLs like "race/tour-de-france/2025" to "race/tour-de-france"
+                normalized_url = re.sub(r'/\d{4}(?:/overview)?$', '', url)
+                race_index.append({"url": normalized_url, "name": link.text.strip(), "class": class_name})
+            else:
+                logger.debug(f"Filtered out URL: {url}")
+
+
+    return race_index
+
+def get_race_index() -> List[Dict]:
+    """Fetches race name to race url associations to pull start lists from"""
+    
+    logger.info(f"Fetching race index from Pro Cycling Stats:\n {RACE_INDEX_SOURCES}")
 
     race_index = []
-    for race_filter in race_filters:
+    for race_filter in RACE_INDEX_SOURCES:
         sleep(1)  # To avoid hitting the server too fast
         race_index_url = f"https://www.procyclingstats.com/races.php?s=races-database&name=&nation=&class={race_filter.get('class', '')}&category={race_filter.get('category', '')}&year=&season=&month=&filter=Filter"
         logger.info(f"Fetching race index from {race_index_url}")
@@ -64,12 +82,13 @@ def get_race_index() -> List[Dict]:
     return race_index
 
 class ProCyclingStatsStartListScraper(StartListScraper):
-    def __init__(self, race_year, race_name, force_start_list_url=None):
-        super().__init__(data_source_name="procyclingstats", race_year=race_year, race_name=race_name, force_start_list_url=force_start_list_url)
+    def __init__(self, race_year, race_name, force_start_list_url=None, race_index_base_url=None):
+        super().__init__(data_source_name="procyclingstats", race_year=race_year, race_name=race_name, force_start_list_url=force_start_list_url, race_index_base_url=race_index_base_url)
 
     def get_start_list_raw_url(self) -> str:
-        url = f"https://www.procyclingstats.com/race/{self.race_name}/{self.race_year}/startlist/startlist"
-        return url
+        if self.race_index_base_url:
+            return f"{self.race_index_base_url}/{self.race_year}/startlist/startlist"
+        return f"https://www.procyclingstats.com/race/{self.race_name}/{self.race_year}/startlist/startlist"
 
     def transform_raw_start_list(self, html_string) -> List[Dict]:
         # logger.info(f"Parsing start_list file {html_file_path}")

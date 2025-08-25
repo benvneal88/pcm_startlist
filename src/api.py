@@ -51,8 +51,8 @@ class AppAPI():
 
         race_df = self.app_model.get_race(pcm_database_id, pcm_race_id)
         start_list_race_name = force_start_list_race_name if force_start_list_race_name else race_df.iloc[0]['start_list_race_name']
-
-        start_list_file_id, start_list_downloaded_at, start_list_url = self.app_model.download_and_stage_start_list(race_year, start_list_race_name, force_start_list_url)
+        race_index_base_url = race_df.iloc[0]['race_url_pcs']
+        start_list_file_id, start_list_downloaded_at, start_list_url = self.app_model.download_and_stage_start_list(race_year, start_list_race_name, force_start_list_url, race_index_base_url)
         if start_list_file_id is None:
             return None, start_list_url
         
